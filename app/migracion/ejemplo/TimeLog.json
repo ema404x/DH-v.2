@@ -1,0 +1,1 @@
+[{"id":"t1","work_order_id":"w1","employee_id":"e1","employee_name":"Juan Perez","date":"2026-09-01","hours":3.5,"type":"extra","description":"Purga de caldera"},{"id":"t2","work_order_id":"w2","employee_name":"Juan Perez","date":"2026-09-01","hours":2}]

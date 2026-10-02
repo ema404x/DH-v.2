@@ -1,0 +1,14 @@
+{
+  "name": "dh1-v2-pruebas",
+  "private": true,
+  "type": "module",
+  "description": "Pruebas de DH1 v2 que corren en local, sin tocar Supabase: el SQL sobre un Postgres embebido (PGlite) y el motor de la cola sin señal.",
+  "scripts": {
+    "test": "node aceptacion.mjs && node offline.test.mjs",
+    "test:sql": "node aceptacion.mjs",
+    "test:offline": "node offline.test.mjs"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.0"
+  }
+}

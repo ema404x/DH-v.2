@@ -1,0 +1,1 @@
+[{"id":"m1","name":"Cable 2,5","code":"CAB-1","category":"electrico","unit":"metro","stock":120,"min_stock":50,"unit_cost":350,"sector_id":"escuela"},{"id":"m2","name":"Taladro","code":"cab-1","category":"herramientas","stock":-1,"sector_id":"escuela"},{"id":"m3","name":"Sin sector"}]

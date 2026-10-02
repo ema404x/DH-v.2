@@ -1,0 +1,1 @@
+[{"id":"rc1","sector":"EDUCACION","numero":1,"evento_riesgo":"Electrocución","probabilidad":"Alta","consecuencia":"Mayor","nivel_riesgo":32,"metodo_control":"MP","frecuencia":"Mensual","en_alcance":"Sí"},{"id":"rc2","sector":"SALUD","evento_riesgo":"Otro","probabilidad":"Media","consecuencia":"Menor"}]

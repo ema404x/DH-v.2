@@ -1,0 +1,1 @@
+[{"id":"a1","contratista":"Limpiezas SA","ada_numero":"7777","obra_servicio":"Limpieza","fecha_inicio_validez":"2026-01-01","fecha_fin_validez":"2026-12-31","items":[{"descripcion":"Limpieza","um":"MES","cantidad":12,"importe_unitario":"900,00"}],"sector_id":"escuela"}]

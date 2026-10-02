@@ -1,0 +1,19 @@
+node_modules
+.next
+out
+.env*.local
+next-env.d.ts
+*.tsbuildinfo
+
+# generados por next-pwa en cada build
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/workbox-*.js.map
+public/swe-worker-*.js
+public/fallback-*.js
+
+# salida de la migración (tiene datos reales)
+migracion/salida
+migracion/perfiles_pendientes.json
+supabase/.temp

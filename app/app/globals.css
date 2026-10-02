@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tokens de DH1: tema oscuro azulado. Son la única fuente de color de toda la app
+   (tailwind.config.ts los expone como clases). Valores en HSL sin la función, para poder usar opacidad. */
+@layer base {
+  :root {
+    --fondo: 215 30% 9%;
+    --barra: 215 45% 7%;
+    --superficie: 215 28% 13%;
+    --elevado: 215 25% 18%;
+    --borde: 215 22% 26%;
+    --texto: 215 12% 93%;
+    --suave: 215 12% 68%;
+    --primario: 213 90% 55%;
+    --sobre-primario: 0 0% 100%;
+    --exito: 142 60% 50%;
+    --alerta: 40 92% 58%;
+    --peligro: 0 84% 66%;
+    --info: 199 85% 60%;
+    /* series para distinguir categorías en el mapa (zonas, jefes de sitio) */
+    --serie-1: 213 90% 62%;
+    --serie-2: 280 70% 70%;
+    --serie-3: 160 60% 50%;
+    --serie-4: 30 90% 60%;
+    --serie-5: 330 75% 68%;
+    --serie-6: 190 80% 55%;
+    --serie-7: 55 85% 58%;
+    --serie-8: 215 12% 75%;
+    /* hoja impresa */
+    --papel: 0 0% 100%;
+    --tinta: 215 30% 12%;
+    color-scheme: dark;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-fondo font-sans text-base text-texto antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  * {
+    @apply border-borde;
+    /* Barras de desplazamiento finas y del color del tema (la del sistema es clara y con flechas). */
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--borde)) transparent;
+  }
+
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-primario;
+  }
+
+  h1 { @apply text-xl font-semibold; }
+  h2 { @apply text-lg font-semibold; }
+
+  /* Números en columnas: todos del mismo ancho. */
+  .num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+@layer components {
+  .tarjeta {
+    @apply rounded-lg border bg-superficie p-4;
+  }
+
+  .control {
+    @apply min-h-control w-full rounded border bg-elevado px-3 text-base text-texto placeholder:text-suave;
+  }
+
+  .etiqueta {
+    @apply mb-1 block text-sm font-medium text-suave;
+  }
+
+  .esqueleto {
+    @apply animate-pulse rounded bg-elevado;
+  }
+
+  /* Informe de inspección: texto largo con títulos, listas y tablas. */
+  .informe {
+    @apply space-y-3 leading-relaxed;
+  }
+  .informe h1 { @apply text-xl font-bold; }
+  .informe h2 { @apply mt-5 border-b pb-1 text-lg font-semibold; }
+  .informe h3 { @apply mt-4 font-semibold; }
+  .informe ul { @apply list-disc space-y-1 pl-6; }
+  .informe ol { @apply list-decimal space-y-1 pl-6; }
+  .informe table { @apply block w-full border-collapse overflow-x-auto text-sm; }
+  .informe th { @apply border bg-elevado px-2 py-1 text-left font-semibold; }
+  .informe td { @apply border px-2 py-1 align-top; }
+  .informe strong { @apply font-semibold; }
+}
+
+/* Mapa: las teselas de OpenStreetMap son claras; se invierten para que acompañen el tema oscuro. */
+.mapa-oscuro {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.7);
+}
+.leaflet-container {
+  font-family: inherit;
+}
+
+/* Hoja del certificado: al imprimir queda solo la hoja, en claro. */
+@media print {
+  body {
+    @apply bg-papel text-tinta;
+  }
+  .no-imprimir {
+    display: none !important;
+  }
+  .hoja {
+    @apply border-0 bg-papel p-0 text-tinta;
+  }
+  .hoja * {
+    @apply border-tinta/30 text-tinta;
+  }
+  /* Reportes y listados impresos: tarjetas en claro, sin fondos oscuros. */
+  .tarjeta {
+    @apply border-tinta/30 bg-papel text-tinta;
+  }
+  .text-suave {
+    @apply text-tinta/70;
+  }
+}

@@ -1,0 +1,1 @@
+[{"id":"mv1","tipo":"salida","material_id":"m1","cantidad":10,"stock_anterior":130,"stock_nuevo":120,"motivo":"asignacion_proyecto","proyecto_id":"p1","proyecto_nombre":"Cambio de cubierta","responsable":"Juan","costo_unitario":350},{"id":"mv2","tipo":"entrada","material_id":"m9","cantidad":5,"motivo":"compra"}]
