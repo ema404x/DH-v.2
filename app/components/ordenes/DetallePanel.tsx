@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { guardarPlantilla } from '@/lib/gestion';
+import { descargarPDFOrden } from '@/lib/pdfOT';
 import { limpiarError } from '@/lib/errores';
 import { urlDeQR } from '@/lib/qr';
 import { useSesion } from '@/lib/sesion';
@@ -119,6 +120,7 @@ export function WorkOrderDetailPanel({ order, personas, onClose, onChanged }: {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [stateActionLoading, setStateActionLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generandoPDF, setGenerandoPDF] = useState(false);
   const [nFotos, setNFotos] = useState(order.fotos_total);
   const [nMateriales, setNMateriales] = useState(0);
 
@@ -414,10 +416,11 @@ export function WorkOrderDetailPanel({ order, personas, onClose, onChanged }: {
           <div className="flex-shrink-0 border-t border-white/6 bg-slate-900/90 px-4 py-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1">
-                <a href={`/ot/${fresh.id}/imprimir`} target="_blank" rel="noopener noreferrer" title="PDF" aria-label="PDF"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-white/20 hover:text-white">
-                  <Download className="h-3.5 w-3.5" />
-                </a>
+                <button type="button" title="PDF" aria-label="PDF" disabled={generandoPDF}
+                  onClick={async () => { setGenerandoPDF(true); try { await descargarPDFOrden(fresh); } catch (e) { toast.error(limpiarError(e)); } finally { setGenerandoPDF(false); } }}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-white/20 hover:text-white disabled:opacity-40">
+                  {generandoPDF ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                </button>
                 {puedeValidar && (
                   <button type="button" onClick={handleSaveAsTemplate} disabled={savingTemplate} title="Guardar plantilla" aria-label="Guardar plantilla"
                     className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-white/20 hover:text-white disabled:opacity-40">
