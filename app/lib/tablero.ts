@@ -53,7 +53,7 @@ export async function listarPersonas(): Promise<PersonaSector[]> {
 
 export type Accion = 'asignar' | 'iniciar' | 'finalizar' | 'aprobar' | 'rechazar' | 'cancelar' | 'convertir_obra' | 'completar';
 
-// Igual que lib/workorder-transitions.js de la v1. "obra" no existe en la v2 (ver CLAUDE.md).
+// Igual que lib/workorder-transitions.js de la v1 (con el estado "obra" de la fase 15).
 export function getTransitionAction(from: string, to: string): Accion | null {
   if (from === 'completada' || from === 'cancelada') return null;
   if (to === 'cancelada') return 'cancelar';
@@ -70,8 +70,9 @@ export function getTransitionAction(from: string, to: string): Accion | null {
   return mapa[`${from}>${to}`] ?? null;
 }
 
-const DESTINO: Partial<Record<Accion, EstadoOT>> = {
+const DESTINO: Record<Accion, EstadoOT> = {
   asignar: 'asignada', iniciar: 'en_progreso', finalizar: 'pendiente_validacion', aprobar: 'completada', rechazar: 'en_progreso', cancelar: 'cancelada',
+  convertir_obra: 'obra', completar: 'completada',
 };
 
 export const MENSAJE: Record<Accion, string> = {
@@ -93,9 +94,13 @@ export interface Extra {
 // Devuelve el mensaje de la v1. Los errores son los de la base (validar_transicion_ot).
 export async function transicionar(ot: Pick<OT, 'id' | 'estado' | 'asignado_a'>, accion: Accion, extra: Extra = {}): Promise<string> {
   const estado = DESTINO[accion];
-  // "Completar" desde cualquier estado y "Futura Obra" son atajos de la v1 que la v2 no tiene:
-  // una orden se cierra solo aprobándola desde Validación.
-  if (!estado) throw new Error('Esa transición de estado no está permitida');
+  // "Completar" solo vale desde una obra (la base lo controla); desde otro estado se aprueba desde Validación.
+  if (accion === 'completar' && ot.estado !== 'obra') throw new Error('Para cerrar la orden, finalizala y aprobala desde Validación.');
+  // "Futura Obra" crea además el pendiente de tipo obra (como el botón "Obra" de la v1).
+  if (accion === 'convertir_obra') {
+    exigir(await supabase().rpc('convertir_ot_en_obra', { p_ot: ot.id }));
+    return MENSAJE[accion];
+  }
   if (accion === 'asignar' && !(extra.asignado_a ?? ot.asignado_a)) {
     throw new Error('Debe asignar un operario antes de cambiar el estado a "Asignada"');
   }

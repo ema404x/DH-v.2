@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   AlertOctagon, AlertTriangle, Camera, CheckCircle2, CheckSquare, Circle, ClipboardX, Clock, Image as ImageIcon, Loader2, MapPin,
-  MessageSquare, MessageSquareWarning, Navigation, Package, Plus, Search, Trash2, User, X, XCircle, ZoomIn,
+  MessageSquare, MessageSquareWarning, Navigation, Package, PenTool, Plus, Search, Trash2, User, X, XCircle, ZoomIn,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -747,5 +747,92 @@ export function DeleteWorkOrderButton({ titulo, asignado, onDelete }: { titulo: 
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+// ------------------------------------------------------------------ Firma (WorkOrderSignature de la v1)
+// La firma se guarda como imagen PNG en la orden (fase 15); la fecha la pone la base.
+
+export function WorkOrderSignature({ signatureUrl, signatureName, onChange }: {
+  signatureUrl?: string | null; signatureName?: string | null; onChange: (v: { firma_url: string | null; firma_nombre: string | null }) => Promise<void>;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+  const lastPos = useRef<{ x: number; y: number } | null>(null);
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [name, setName] = useState(signatureName || '');
+  const [saving, setSaving] = useState(false);
+
+  const pintarFondo = () => {
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx || !canvasRef.current) return;
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+  };
+  useEffect(() => { pintarFondo(); }, [signatureUrl]);
+
+  const getPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const c = canvasRef.current!;
+    const r = c.getBoundingClientRect();
+    return { x: ((e.clientX - r.left) * c.width) / r.width, y: ((e.clientY - r.top) * c.height) / r.height };
+  };
+  const startDraw = (e: React.PointerEvent<HTMLCanvasElement>) => { e.preventDefault(); drawing.current = true; lastPos.current = getPos(e); };
+  const draw = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing.current || !lastPos.current) return;
+    const ctx = canvasRef.current!.getContext('2d')!;
+    const pos = getPos(e);
+    ctx.beginPath(); ctx.moveTo(lastPos.current.x, lastPos.current.y); ctx.lineTo(pos.x, pos.y); ctx.stroke();
+    lastPos.current = pos;
+    setHasDrawn(true);
+  };
+  const stopDraw = () => { drawing.current = false; };
+
+  const guardar = async (v: { firma_url: string | null; firma_nombre: string | null }) => {
+    setSaving(true);
+    try { await onChange(v); } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <PenTool className="h-4 w-4 text-primary" />
+        <span className="text-sm font-semibold">Firma Digital</span>
+      </div>
+      {signatureUrl ? (
+        <div className="space-y-2">
+          <div className="rounded-lg border border-border bg-muted/20 p-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={signatureUrl} alt="Firma" className="max-h-24 rounded bg-white object-contain" />
+            {signatureName && <p className="mt-1 text-xs text-muted-foreground">Firmado por: {signatureName}</p>}
+          </div>
+          <Button variant="outline" size="sm" className="gap-2 text-destructive" disabled={saving}
+            onClick={() => { setHasDrawn(false); void guardar({ firma_url: null, firma_nombre: null }); }}>
+            <Trash2 className="h-3.5 w-3.5" /> Borrar firma
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Input placeholder="Nombre del firmante" value={name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)} className="text-sm" />
+          <div className="overflow-hidden rounded-lg border-2 border-dashed border-border">
+            <canvas ref={canvasRef} width={400} height={120} aria-label="Área para firmar" className="w-full cursor-crosshair touch-none"
+              onPointerDown={startDraw} onPointerMove={draw} onPointerUp={stopDraw} onPointerLeave={stopDraw} />
+          </div>
+          <p className="text-center text-xs text-muted-foreground">Dibujá la firma en el área de arriba</p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => { pintarFondo(); setHasDrawn(false); }}>
+              <Trash2 className="h-3.5 w-3.5" /> Limpiar
+            </Button>
+            <Button size="sm" className="flex-1 gap-1" disabled={!hasDrawn || saving}
+              onClick={() => void guardar({ firma_url: canvasRef.current!.toDataURL('image/png'), firma_nombre: name.trim() || null })}>
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              Guardar Firma
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

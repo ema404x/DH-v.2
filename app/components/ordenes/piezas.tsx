@@ -321,11 +321,11 @@ export const WorkOrderCard = memo(function WorkOrderCard({ order, onOpen, onShow
             <Zap className="h-3.5 w-3.5" /> Iniciar
           </Button>
         )}
-        {canComplete && !isTerminal && ['en_progreso', 'pendiente_validacion'].includes(order.estado) && (
+        {canComplete && !isTerminal && ['en_progreso', 'pendiente_validacion', 'obra'].includes(order.estado) && (
           <Button size="sm" className="ml-auto h-7 gap-1 bg-emerald-600 px-3 text-xs text-white hover:bg-emerald-500"
             onClick={(e: React.MouseEvent) => { e.stopPropagation(); onComplete(order); }}>
             <CheckCircle2 className="h-3.5 w-3.5" />
-            {order.estado === 'en_progreso' ? 'Finalizar' : 'Aprobar'}
+            {order.estado === 'en_progreso' ? 'Finalizar' : order.estado === 'pendiente_validacion' ? 'Aprobar' : 'Completar'}
           </Button>
         )}
       </div>

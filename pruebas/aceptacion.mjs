@@ -26,7 +26,7 @@ await db.exec(`
   grant execute on function auth.uid() to anon, authenticated, service_role;
 `);
 
-for (const f of ['dh1-v2-fundacion.sql', 'dh1-v2-fase3-gestion.sql', 'dh1-v2-fase4-certificacion.sql', 'dh1-v2-fase5-migracion.sql', 'dh1-v2-fase6-operacion.sql', 'dh1-v2-fase7-informe-ia.sql', 'dh1-v2-fase8-gente.sql', 'dh1-v2-fase9-obras.sql', 'dh1-v2-fase10-panol.sql', 'dh1-v2-fase11-control.sql', 'dh1-v2-fase12-administracion.sql', 'dh1-v2-fase13-ajustes.sql', 'dh1-v2-fase14-certificados-v1.sql']) {
+for (const f of ['dh1-v2-fundacion.sql', 'dh1-v2-fase3-gestion.sql', 'dh1-v2-fase4-certificacion.sql', 'dh1-v2-fase5-migracion.sql', 'dh1-v2-fase6-operacion.sql', 'dh1-v2-fase7-informe-ia.sql', 'dh1-v2-fase8-gente.sql', 'dh1-v2-fase9-obras.sql', 'dh1-v2-fase10-panol.sql', 'dh1-v2-fase11-control.sql', 'dh1-v2-fase12-administracion.sql', 'dh1-v2-fase13-ajustes.sql', 'dh1-v2-fase14-certificados-v1.sql', 'dh1-v2-fase15-ot-obra-firma.sql']) {
   try {
     await db.exec(readFileSync(join(raiz, f), 'utf8'));
     console.log(`cargado  ${f}`);
@@ -1384,6 +1384,48 @@ ok('la tarea sin usuario emite el mes con la misma cuenta (parte del mes y acumu
   && x16srvC.s === 250000 && x16srvC.a > 0 && x16srvC.emitido_por === null && x16srvC.g === true, JSON.stringify({ x16srv, x16srvC }));
 const x16autoSrv = (await uno(`select certificados_automaticos(false) as r`)).r;
 ok('la emisión automática sin usuario solo corre el último día hábil', typeof x16autoSrv.ejecutado === 'boolean' && /hábil|Emisión/.test(x16autoSrv.mensaje), JSON.stringify(x16autoSrv).slice(0, 200));
+
+
+// ---------------------------------------------------------------- 17. fase 15: estado obra y firma
+titulo('17. Órdenes: estado Obra (Futura Obra) y firma de conformidad');
+await como(U.gerE);
+const x17u = (await uno(`insert into ubicaciones (nombre, direccion) values ('Escuela 99', 'Calle 1 234') returning id`)).id;
+const x17ot = (await uno(`insert into ordenes_trabajo (titulo, ubicacion_id, checklist, prioridad)
+  values ('Techo con filtraciones', $1, '[{"id":"1","tarea":"Revisar","hecho":false}]', 'alta') returning id`, [x17u])).id;
+await como(U.opE);
+await rechaza('un operario no convierte una orden en obra', `select convertir_ot_en_obra($1)`, /convertir la orden en obra/, [x17ot]);
+await rechaza('un operario no la pasa a obra con un update', `update ordenes_trabajo set estado = 'obra' where id = $1`, /convertir la orden en obra/, [x17ot]);
+await como(U.gerE);
+const x17p = (await uno(`select convertir_ot_en_obra($1) as id`, [x17ot])).id;
+const x17pd = await uno(`select tipo, estado, descripcion, prioridad, sitio, ubicacion_id from pendientes where id = $1`, [x17p]);
+const x17o = await uno(`select estado::text from ordenes_trabajo where id = $1`, [x17ot]);
+ok('convertir en obra crea el pendiente de tipo obra y deja la orden en "obra"',
+  x17o.estado === 'obra' && x17pd.tipo === 'obra' && x17pd.descripcion === 'Techo con filtraciones' && x17pd.prioridad === 'alta'
+  && x17pd.ubicacion_id === x17u && /Escuela 99/.test(x17pd.sitio), JSON.stringify({ x17o, x17pd }));
+await rechaza('no se convierte dos veces', `select convertir_ot_en_obra($1)`, /No se puede convertir/, [x17ot]);
+await rechaza('una obra no vuelve a pendiente', `update ordenes_trabajo set estado = 'pendiente' where id = $1`, /no puede pasar a pendiente/, [x17ot]);
+await rechaza('completar la obra con el checklist incompleto pide el motivo', `update ordenes_trabajo set estado = 'completada' where id = $1`, /Faltan tareas del checklist/, [x17ot]);
+const x17c = await uno(`update ordenes_trabajo set estado = 'completada', motivos_incompleto = '[{"id":"m","texto":"Se hace como obra"}]'
+  where id = $1 returning estado::text, validado_por, fecha_validacion`, [x17ot]);
+ok('la obra se completa con el motivo y queda validada por quien la cerró', x17c.estado === 'completada' && x17c.validado_por === U.gerE && !!x17c.fecha_validacion, JSON.stringify(x17c));
+const x17ot2 = (await uno(`insert into ordenes_trabajo (titulo) values ('Obra a cancelar') returning id`)).id;
+await db.query(`select convertir_ot_en_obra($1)`, [x17ot2]);
+ok('una obra se puede cancelar', (await uno(`update ordenes_trabajo set estado = 'cancelada' where id = $1 returning estado::text`, [x17ot2])).estado === 'cancelada');
+ok('v_ordenes muestra el estado obra', (await uno(`select count(*)::int n from v_ordenes where id = $1 and estado::text = 'cancelada'`, [x17ot2])).n === 1);
+
+// firma
+const x17ot3 = (await uno(`insert into ordenes_trabajo (titulo, asignado_a) values ('Para firmar', $1) returning id`, [U.opE])).id;
+await como(U.opE);
+await db.query(`update ordenes_trabajo set estado = 'en_progreso' where id = $1`, [x17ot3]);
+const x17f = await uno(`update ordenes_trabajo set firma_url = 'data:image/png;base64,FIRMA', firma_nombre = 'Juan Pérez', firma_at = '2000-01-01'
+  where id = $1 returning firma_nombre, firma_at`, [x17ot3]);
+ok('el operario firma la orden y la fecha la pone la base', x17f.firma_nombre === 'Juan Pérez' && new Date(x17f.firma_at).getFullYear() > 2020, JSON.stringify(x17f));
+await rechaza('la firma tiene que ser una imagen', `update ordenes_trabajo set firma_url = 'http://x' where id = $1`, /firma_chk/, [x17ot3]);
+const x17v = await uno(`select firma_url, firma_nombre from v_ordenes where id = $1`, [x17ot3]);
+ok('v_ordenes trae la firma', x17v.firma_url === 'data:image/png;base64,FIRMA' && x17v.firma_nombre === 'Juan Pérez');
+const x17b = await uno(`update ordenes_trabajo set firma_url = null where id = $1 returning firma_nombre, firma_at`, [x17ot3]);
+ok('borrar la firma limpia el nombre y la fecha', x17b.firma_nombre === null && x17b.firma_at === null);
+await servicio();
 
 // ---------------------------------------------------------------- resultado
 await servicio();

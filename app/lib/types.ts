@@ -1,7 +1,7 @@
 // Tipos de las tablas y vistas de DH1 v2. Reflejan el SQL de las fases 1 a 4.
 
 export type Rol = 'admin' | 'gerente_general' | 'gerente' | 'jefe_sitio' | 'inspector' | 'operario';
-export type EstadoOT = 'pendiente' | 'asignada' | 'en_progreso' | 'pendiente_validacion' | 'completada' | 'cancelada';
+export type EstadoOT = 'pendiente' | 'asignada' | 'en_progreso' | 'pendiente_validacion' | 'completada' | 'cancelada' | 'obra';
 export type TipoOT =
   | 'mantenimiento_preventivo' | 'mantenimiento_correctivo' | 'instalacion' | 'inspeccion' | 'reparacion' | 'emergencia';
 export type Prioridad = 'baja' | 'media' | 'alta' | 'urgente';
@@ -145,6 +145,10 @@ export interface OT {
   ubicacion_lat: number | null;
   ubicacion_lng: number | null;
   horas_cargadas: number;
+  // Firma de conformidad (fase 15)
+  firma_url?: string | null;
+  firma_nombre?: string | null;
+  firma_at?: string | null;
 }
 
 export interface FotoOT {

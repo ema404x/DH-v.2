@@ -109,7 +109,7 @@ function WorkOrders() {
   // "Completar" de la grilla avanza por el flujo formal: en progreso → finalizar, validación → aprobar.
   const handleComplete = useCallback((o: FilaTablero) => {
     if (!navigator.onLine) { toast.info('Sin conexión — modo offline. No se puede cambiar el estado hasta reconectar.'); return; }
-    ejecutar(o, o.estado === 'pendiente_validacion' ? 'aprobar' : 'finalizar');
+    ejecutar(o, o.estado === 'pendiente_validacion' ? 'aprobar' : o.estado === 'obra' ? 'completar' : 'finalizar');
   }, [ejecutar]);
 
   const handleStatusChange = (id: string, newStatus: string) => {
@@ -117,7 +117,7 @@ function WorkOrders() {
     const order = orders.find((o) => o.id === id);
     if (!order || order.estado === newStatus) return;
     const action = getTransitionAction(order.estado, newStatus);
-    if (!action || action === 'completar' || action === 'convertir_obra') {
+    if (!action) {
       toast.error('Esa transición de estado no está permitida');
       return;
     }
@@ -165,7 +165,7 @@ function WorkOrders() {
     asignadas: filtered.filter((o) => o.estado === 'asignada').length,
     en_progreso: filtered.filter((o) => o.estado === 'en_progreso').length,
     validacion: filtered.filter((o) => o.estado === 'pendiente_validacion').length,
-    obra: 0,
+    obra: filtered.filter((o) => o.estado === 'obra').length,
     completadas: filtered.filter((o) => o.estado === 'completada').length,
     canceladas: filtered.filter((o) => o.estado === 'cancelada').length,
   }), [filtered]);

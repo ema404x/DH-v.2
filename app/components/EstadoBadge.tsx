@@ -28,6 +28,7 @@ const OT: Record<EstadoOT, Definicion> = {
   pendiente_validacion: { texto: 'A validar', tono: 'info', icono: ClipboardCheck },
   completada: { texto: 'Completada', tono: 'exito', icono: CheckCircle2 },
   cancelada: { texto: 'Cancelada', tono: 'peligro', icono: Ban },
+  obra: { texto: 'Futura obra', tono: 'alerta', icono: Wrench },
 };
 
 const PRIORIDAD: Record<Prioridad, Definicion> = {

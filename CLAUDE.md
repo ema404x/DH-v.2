@@ -468,7 +468,7 @@ certifica de más, la firma del gerente es la de quien aprueba). Se replicó des
 `pages/Certificados.jsx`, `CertificadoEditor`, `CertificadoPreview`, `CertificadosLista`, `HistorialAcumulados`,
 `FirmaJefeSitioModal`, `UploadADA`, `AbonoManualForm`, `GeneracionMasiva`, `CertificadosAutomatizados`,
 `AbonoMaestroPanel/Card/Form/RubrosGrid`, `CertificacionMensualDialog` y `utils/exportCertificadoPDF.js`.
-- SQL `dh1-v2-fase14-certificados-v1.sql` (pruebas 458/458, sección 16). **Corrida en el Supabase real el 7/10/2026** con
+- SQL `dh1-v2-fase14-certificados-v1.sql` (pruebas 458/458 entonces; 471 con la fase 15, sección 16). **Corrida en el Supabase real el 7/10/2026** con
   el OK de Emanuel (hash verificado, consulta de control OK). Emisión automática SIN programar (decisión: después de probar).
 - App: `app/gestion/certificacion/page.tsx` (la página de la v1), `components/certificados/*`, `lib/certificados.ts`,
   `lib/pdfCertificado.ts` (jsPDF, mismo formato; logo copiado a `public/certificados/mejores-logo.jpg` porque el de la
@@ -494,10 +494,16 @@ v1, reglas de la v2**. Fuente: el clon actual de la v1 (GitHub ema404x/DH1b44, 6
 - Órdenes: `app/gestion/ots/page.tsx` = `pages/WorkOrders.jsx` (Kanban/Grilla, tarjetas de totales, Filtros, Campo,
   Historial, Plantillas, QR); `components/ordenes/` (piezas, extras, secciones, DetallePanel = WorkOrderDetailPanel con
   autoguardado); `lib/tablero.ts` (máquina de estados v1 → updates de la v2). Especificación completa: `ESPEC-OT-v1.md`.
-- Diferencias a sabiendas (reglas v2 o falta de columna): no existe el estado "Obra"/Futura Obra (columna y tarjeta quedan
-  en 0, no hay botón "Obra"); no hay "Completar" desde cualquier estado (solo aprobar desde Validación); el responsable se
-  elige de la lista de usuarios (no texto libre); "archivadas" = completadas hace más de 30 días (calculado); "vencida" en
-  el tablero usa la regla de la v1 (en progreso con fecha pasada); sin firma en la orden (no hay columna); el QR es el de la ubicación (o el enlace a la orden). Sin tiempo real: recarga cada 30 s.
+- Fase 15 (`dh1-v2-fase15-ot-obra-firma.sql`, pruebas 471/471, sección 17). **Corrida en el Supabase real el 7/10/2026 a la
+  noche** con permiso de Emanuel para esa noche (hash e789157b…5a96 verificado en el editor, consulta de control OK):
+  estado `obra` (Futura Obra), `convertir_ot_en_obra(p_ot)` (crea el pendiente tipo obra y pasa la orden a obra),
+  obra → completada (gerencia/jefe; checklist completo o motivo, fotos si las pide) u obra → cancelada; firma de
+  conformidad en la orden (`firma_url` PNG data URL, `firma_nombre`, `firma_at` lo pone la base); v_ordenes recreada.
+  En pantalla: columna/tarjeta Obra, botón "Obra" del panel (pide confirmación), "Completar" en las obras, arrastrar a Obra
+  (también crea el pendiente, a diferencia de la v1), sección "Fotos & Firma" y la firma en el PDF.
+- Diferencias a sabiendas (reglas v2): "Completar" solo desde Obra (el resto se aprueba desde Validación); el responsable
+  se elige de la lista de usuarios (no texto libre); "archivadas" = completadas hace más de 30 días (calculado); "vencida" en
+  el tablero usa la regla de la v1 (en progreso con fecha pasada); el QR es el de la ubicación (o el enlace a la orden). Sin tiempo real: recarga cada 30 s.
 - Crear OT (`app/gestion/ots/nueva`) = CrearOT de la v1: Activo → Detalle → Materiales, Futura Obra (crea un pendiente tipo obra), dictado por voz, 5 Reglas de Oro, fotos de referencia (se suben al crear). Sin persona elegida queda a cargo el jefe de sitio de la ubicación del activo. A diferencia de la v1, la plantilla también copia el checklist.
 - Mis Órdenes (`app/mis-ots`) = PortalOperarioApp de la v1 (secciones En Progreso / Para Empezar / Enviadas al Jefe, filtros,
   Historial, confirmación de inicio, Reporte de Cierre `components/operario/ReporteForm.tsx`) sobre el motor sin señal de la v2.

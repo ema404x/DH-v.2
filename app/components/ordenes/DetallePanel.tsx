@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AlertTriangle, Calendar, Camera, CheckSquare, ChevronDown, ClipboardX, Download, FileText, Layers, Loader2, MapPin, Navigation, Package,
-  QrCode, RefreshCw, Save, User, X, Zap, type LucideIcon,
+  QrCode, RefreshCw, Save, User, Wrench, X, Zap, type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import type { MotivoIncompleto, TareaChecklist } from '@/lib/types';
 import { CancelarOTModal, QRCodeModal, TYPE_LABELS, dueñoDe, lugarDe } from './piezas';
 import {
   DeleteWorkOrderButton, LocationEditor, RechazoOTModal, ReporteOperarioResumen, WorkOrderChecklist, WorkOrderIncompleteReason,
-  WorkOrderMaterials, WorkOrderPhotos, type Faltante,
+  WorkOrderMaterials, WorkOrderPhotos, WorkOrderSignature, type Faltante,
 } from './secciones';
 
 // Panel de detalle de la v1 (components/workorders/WorkOrderDetailPanel.jsx) sobre los datos de la v2.
@@ -47,6 +47,7 @@ const ACCIONES: Record<string, { accion: Accion; label: string; variant: string 
   asignada: [{ accion: 'iniciar', label: 'Iniciar', variant: 'sky' }],
   en_progreso: [{ accion: 'finalizar', label: 'Finalizar', variant: 'emerald' }],
   pendiente_validacion: [{ accion: 'aprobar', label: 'Aprobar', variant: 'emerald' }, { accion: 'rechazar', label: 'Rechazar', variant: 'red' }],
+  obra: [{ accion: 'completar', label: 'Completar', variant: 'emerald' }],
 };
 const ACTION_VARIANTS: Record<string, string> = {
   blue: 'bg-blue-600/20 border border-blue-500/30 text-blue-300 hover:bg-blue-600/30',
@@ -196,7 +197,7 @@ export function WorkOrderDetailPanel({ order, personas, onClose, onChanged }: {
     try {
       toast.success(await transicionar({ ...fresh, asignado_a: data.asignado_a }, accion, extra));
       onChanged();
-      if (accion === 'aprobar' || accion === 'cancelar' || accion === 'rechazar') onClose();
+      if (['aprobar', 'cancelar', 'rechazar', 'convertir_obra', 'completar'].includes(accion)) onClose();
       else await recargar();
     } catch (err) {
       toast.error(limpiarError(err));
@@ -214,7 +215,7 @@ export function WorkOrderDetailPanel({ order, personas, onClose, onChanged }: {
   const handleStatusDropdownChange = (newStatus: string) => {
     if (newStatus === fresh.estado) return;
     const action = getTransitionAction(fresh.estado, newStatus);
-    if (!action || action === 'completar' || action === 'convertir_obra') {
+    if (!action) {
       toast.error(`Transición no válida: ${STATUS_CFG[fresh.estado]?.label ?? fresh.estado} → ${STATUS_CFG[newStatus]?.label ?? newStatus}`);
       return;
     }
@@ -235,6 +236,23 @@ export function WorkOrderDetailPanel({ order, personas, onClose, onChanged }: {
       toast.error(limpiarError(e));
     } finally {
       setSavingTemplate(false);
+    }
+  };
+
+  // Botón "Obra" de la v1: crea el pendiente de tipo obra y deja la orden en "obra".
+  const convertirEnObra = () => {
+    if (!window.confirm('¿Convertir esta OT a Futura Obra? Se creará un pendiente de tipo obra y la OT quedará en estado "Obra".')) return;
+    void ejecutar('convertir_obra');
+  };
+
+  const guardarFirma = async (v: { firma_url: string | null; firma_nombre: string | null }) => {
+    try {
+      await actualizarOT(fresh.id, v);
+      toast.success(v.firma_url ? 'Firma guardada' : 'Firma borrada');
+      await recargar();
+      onChanged();
+    } catch (e) {
+      toast.error(limpiarError(e));
     }
   };
 
@@ -399,8 +417,14 @@ export function WorkOrderDetailPanel({ order, personas, onClose, onChanged }: {
                 onChangeFaltantes={(v) => saveFields({ materiales_faltantes: v })} onCount={setNMateriales} />
             </CollapseSection>
 
-            <CollapseSection icon={Camera} title="Fotos" badge={nFotos || null} defaultOpen={false}>
-              <WorkOrderPhotos ot={fresh} onCount={setNFotos} />
+            <CollapseSection icon={Camera} title="Fotos & Firma" badge={nFotos || null} defaultOpen={false}>
+              <div className="space-y-4">
+                <WorkOrderPhotos ot={fresh} onCount={setNFotos} />
+                <div className="border-t border-slate-700/50 pt-4">
+                  <p className="mb-2 text-[10px] uppercase tracking-wider text-slate-500">Firma de conformidad</p>
+                  <WorkOrderSignature signatureUrl={fresh.firma_url} signatureName={fresh.firma_nombre} onChange={guardarFirma} />
+                </div>
+              </div>
             </CollapseSection>
 
             <CollapseSection icon={Zap} title="Notas" defaultOpen={false}>
@@ -431,6 +455,13 @@ export function WorkOrderDetailPanel({ order, personas, onClose, onChanged }: {
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-white/20 hover:text-white">
                   <QrCode className="h-3.5 w-3.5" />
                 </button>
+                {puedeValidar && !['completada', 'cancelada', 'obra'].includes(fresh.estado) && (
+                  <button type="button" onClick={convertirEnObra} disabled={stateActionLoading} title="Convertir a Futura Obra"
+                    className="flex h-8 items-center gap-1 rounded-lg border border-amber-500/30 px-2 text-[10px] font-semibold text-amber-400 transition-colors hover:border-amber-500/60 hover:bg-amber-500/10 disabled:opacity-40">
+                    {stateActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wrench className="h-3.5 w-3.5" />}
+                    Obra
+                  </button>
+                )}
                 {esGerencia && <DeleteWorkOrderButton titulo={fresh.titulo} asignado={asignadoNombre} onDelete={borrar} />}
               </div>
               <div className="flex items-center gap-2">

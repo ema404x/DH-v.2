@@ -21,6 +21,7 @@ const STATUS_CFG: Record<string, { color: RGB; label: string }> = {
   pendiente_validacion: { color: [180, 120, 0], label: 'EN VALIDACION' },
   completada: { color: [39, 174, 96], label: 'COMPLETADA' },
   cancelada: { color: [150, 50, 50], label: 'CANCELADA' },
+  obra: { color: [190, 60, 120], label: 'FUTURA OBRA' },
 };
 const PRIORITY_CFG: Record<string, { color: RGB }> = {
   baja: { color: [150, 150, 150] }, media: { color: [41, 128, 185] }, alta: { color: [192, 100, 0] }, urgente: { color: [192, 57, 43] },
@@ -303,6 +304,26 @@ export async function descargarPDFOrden(order: FilaTablero): Promise<void> {
   doc.setDrawColor(...C.gray3); doc.setLineWidth(0.4); doc.line(M + 6, sigY + 24, M + sigW - 6, sigY + 24);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...C.gray3);
   doc.text(order.asignado_nombre || 'Nombre y apellido', M + sigW / 2, sigY + 28, { align: 'center' });
+  // Firma de conformidad (si la tiene), respetando su proporción, como la v1.
+  if (order.firma_url) {
+    const maxW = sigW - 12, maxH = 14;
+    let dw = maxW, dh = maxH;
+    await new Promise<void>((ok) => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.naturalWidth && img.naturalHeight) {
+          const r = img.naturalWidth / img.naturalHeight;
+          if (r > maxW / maxH) { dw = maxW; dh = maxW / r; } else { dh = maxH; dw = maxH * r; }
+        }
+        ok();
+      };
+      img.onerror = () => ok();
+      img.src = order.firma_url!;
+    });
+    doc.addImage(order.firma_url, 'PNG', M + 6 + (maxW - dw) / 2, sigY + 8 + (maxH - dh) / 2, dw, dh);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(...C.green);
+    doc.text(`Firmado: ${order.firma_nombre || ''}`, M + sigW / 2, sigY + 23, { align: 'center' });
+  }
   const s2x = M + sigW + 16;
   doc.setFillColor(...C.offWht); doc.roundedRect(s2x, sigY, sigW, 32, 2, 2, 'F');
   doc.setDrawColor(...C.gray4); doc.roundedRect(s2x, sigY, sigW, 32, 2, 2, 'S');
