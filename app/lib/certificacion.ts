@@ -90,8 +90,12 @@ export interface ContratoLeido {
 async function llamarLector<T>(cuerpo: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase().functions.invoke('leer-contrato-pdf', { body: cuerpo });
   if (error) {
-    const detalle = await (error as { context?: Response }).context?.json?.().catch(() => null);
-    throw new Error(detalle?.error ?? 'No se pudo leer el PDF. Revisá la conexión y probá de nuevo.');
+    const respuesta = (error as { context?: Response }).context;
+    const detalle = await respuesta?.json?.().catch(() => null);
+    if (detalle?.error) throw new Error(detalle.error);
+    if (respuesta?.status === 404) throw new Error('La lectura de PDF todavía no está publicada en Supabase (función leer-contrato-pdf). Cargá el contrato a mano por ahora.');
+    if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('No hay conexión: el PDF se lee en el servidor. Probá cuando vuelva la señal.');
+    throw new Error(`No se pudo leer el PDF (${respuesta?.status ? `error ${respuesta.status}` : error.message}). Probá de nuevo en un rato o cargá el contrato a mano.`);
   }
   if (data?.error) throw new Error(data.error);
   return data as T;
