@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AlertTriangle, ArrowLeft, ClipboardList, HardHat, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSesion } from '@/lib/sesion';
 import { GlobalSearch, NotificationBell, SectorSwitcher, UserMenu } from './Barra';
 import { Sidebar, esRutaActiva, navGroups } from './Sidebar';
 
@@ -28,8 +29,9 @@ function tituloDe(ruta: string) {
 
 function MobileHeader() {
   const ruta = usePathname();
+  const { entraAGestion } = useSesion();
   const router = useRouter();
-  const isRoot = ruta === '/gestion';
+  const isRoot = ruta === '/gestion' || (!entraAGestion && ruta === '/mis-ots');
   return (
     <header className="relative z-30 flex flex-shrink-0 items-center border-b border-border bg-card/95 px-2 backdrop-blur-xl lg:hidden"
       style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3rem + env(safe-area-inset-top))' }}>
@@ -51,7 +53,7 @@ function MobileHeader() {
       )}
       <div className="ml-auto flex items-center gap-1 pr-1">
         <SectorSwitcher />
-        <GlobalSearch variant="icon" />
+        {entraAGestion && <GlobalSearch variant="icon" />}
         <NotificationBell />
         <UserMenu />
       </div>
@@ -67,10 +69,13 @@ const NAV_INFERIOR = [
 
 function MobileBottomNav({ onMore }: { onMore: () => void }) {
   const ruta = usePathname();
+  const { entraAGestion } = useSesion();
+  // El operario: Mis Órdenes y reportar una emergencia.
+  const items = entraAGestion ? NAV_INFERIOR : [NAV_INFERIOR[2], { ...NAV_INFERIOR[1], path: '/emergencia' }];
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} aria-label="Navegación principal">
       <div className="flex items-stretch border-t border-border/60 bg-card/95 shadow-[0_-4px_20px_rgba(0,0,0,0.25)] backdrop-blur-xl">
-        {NAV_INFERIOR.map((item) => {
+        {items.map((item) => {
           const active = esRutaActiva(ruta, item.path);
           const Icon = item.icon;
           return (
@@ -100,6 +105,7 @@ function MobileBottomNav({ onMore }: { onMore: () => void }) {
 
 export function Marco({ children, extra }: { children: ReactNode; extra?: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { entraAGestion } = useSesion();
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'linear-gradient(135deg, #0a1628 0%, #0f1e34 55%, #091422 100%)' }}>
       {extra}
@@ -109,7 +115,7 @@ export function Marco({ children, extra }: { children: ReactNode; extra?: ReactN
         <header className="no-imprimir z-30 hidden h-14 flex-shrink-0 items-center gap-3 border-b border-white/8 pl-5 pr-5 lg:flex"
           style={{ background: 'rgba(10,22,40,0.85)', backdropFilter: 'blur(12px)' }}>
           <div className="max-w-md flex-1">
-            <GlobalSearch />
+            {entraAGestion && <GlobalSearch />}
           </div>
           <div className="ml-auto flex items-center gap-1">
             <SectorSwitcher />

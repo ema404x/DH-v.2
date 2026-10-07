@@ -289,3 +289,13 @@ export async function borrarFoto(foto: FotoOT): Promise<void> {
   exigir(await sb.from('ot_fotos').delete().eq('id', foto.id).select('id').single());
   await sb.storage.from(BUCKET).remove([foto.path]);
 }
+
+// Historial del operario (pantalla de la v1): sus órdenes completadas o canceladas. Necesita señal.
+export async function listarHistorialMio(quien: Quien): Promise<OT[]> {
+  return exigir(
+    await conLimite(
+      supabase().from('v_ordenes').select('*').eq('asignado_a', quien.id).in('estado', ['completada', 'cancelada'])
+        .order('updated_at', { ascending: false }).limit(100),
+    ),
+  ) as OT[];
+}

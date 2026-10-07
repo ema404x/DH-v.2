@@ -500,7 +500,13 @@ v1, reglas de la v2**. Fuente: el clon actual de la v1 (GitHub ema404x/DH1b44, 6
   el tablero usa la regla de la v1 (en progreso con fecha pasada); sin firma en la orden (no hay columna); el PDF abre la
   hoja imprimible de la v2; el QR es el de la ubicación (o el enlace a la orden). Sin tiempo real: recarga cada 30 s.
 - Crear OT (`app/gestion/ots/nueva`) = CrearOT de la v1: Activo → Detalle → Materiales, Futura Obra (crea un pendiente tipo obra), dictado por voz, 5 Reglas de Oro, fotos de referencia (se suben al crear). Sin persona elegida queda a cargo el jefe de sitio de la ubicación del activo. A diferencia de la v1, la plantilla también copia el checklist.
-- Falta: Mis Órdenes del operario y portales, PDF jsPDF de la orden.
+- Mis Órdenes (`app/mis-ots`) = PortalOperarioApp de la v1 (secciones En Progreso / Para Empezar / Enviadas al Jefe, filtros,
+  Historial, confirmación de inicio, Reporte de Cierre `components/operario/ReporteForm.tsx`) sobre el motor sin señal de la v2.
+  El Reporte suma checklist y motivo (la v2 los exige); los faltantes viajan en la cola (`Ejecucion.materiales_faltantes`);
+  los materiales usados se cargan en `ot_materiales` con señal y, sin señal, quedan escritos en las notas. Se mantienen
+  fichaje, cuadrilla y "Reportar una emergencia". Con sesión, la pantalla va dentro del marco de la v1; el operario ve el menú
+  recortado (Mis Órdenes, Emergencias → /emergencia, Foro, Sugerencias, Ayuda) y no ve el buscador.
+- Falta: portales públicos sin login (choca con decisión cerrada), PDF jsPDF de la orden.
 
 ## 4. Lo que falta (fuera de las 5 fases, en orden de valor)
 **La lista completa y priorizada contra la v1 está en `INVENTARIO-v1-v2.md` (relevada el 7/10/2026).** Va primero.

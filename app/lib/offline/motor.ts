@@ -16,6 +16,8 @@ export interface Ejecucion {
   checklist: TareaChecklist[];
   notas: string | null;
   motivos_incompleto: MotivoIncompleto[];
+  // Reporte de cierre de la v1: lo que faltó, con motivo.
+  materiales_faltantes?: { material: string; cantidad: number; motivo?: string }[];
 }
 
 export interface DatosFoto {
@@ -159,6 +161,7 @@ export function aplicarPendientes<T extends OTBase>(ot: T, ops: Op[], quien: { i
         checklist: e.checklist,
         notas: e.notas,
         motivos_incompleto: e.motivos_incompleto,
+        ...(e.materiales_faltantes ? { materiales_faltantes: e.materiales_faltantes } : {}),
         tareas_total: e.checklist.length,
         tareas_hechas: e.checklist.filter((t) => t.hecho).length,
       };

@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect, type ReactNode } from 'react';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
 import { AlertaEmergencias } from '@/components/Emergencias';
 import { BuscadorGlobal } from '@/components/gestion/BuscadorGlobal';
 import { Marco } from '@/components/layout/Marco';
@@ -40,15 +38,8 @@ export default function GestionLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // El operario ve estas secciones con un marco simple y la vuelta a sus órdenes.
-  if (!entraAGestion) {
-    return (
-      <main className="mx-auto max-w-3xl space-y-5 p-4">
-        <Link href="/mis-ots" className="inline-flex min-h-control items-center gap-2 text-primario hover:underline"><ArrowLeft className="h-5 w-5" aria-hidden />Mis órdenes</Link>
-        {children}
-      </main>
-    );
-  }
+  // El operario ve estas secciones dentro del mismo marco, con su menú recortado.
+  if (!entraAGestion) return <Marco>{children}</Marco>;
 
   return (
     <Marco extra={<><AlertaEmergencias /><BuscadorGlobal /></>}>

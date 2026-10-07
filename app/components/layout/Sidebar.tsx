@@ -19,6 +19,9 @@ interface Item {
   path: string;
   soloGerencia?: boolean;
   soloAdmin?: boolean;
+  // El operario no entra a gestión: ve solo estos, y Emergencias lo lleva a reportar una.
+  todos?: boolean;
+  pathOperario?: string;
 }
 
 export const LOGO_DH1 = 'https://media.base44.com/images/public/69bc7d2a6f0e7ed160c90003/7a2959dd1_image.png';
@@ -31,12 +34,12 @@ export const navGroups: { label: string; items: Item[] }[] = [
     items: [
       { label: 'Dashboard', icon: LayoutDashboard, path: '/gestion' },
       { label: 'Calendario', icon: CalendarDays, path: '/gestion/calendario' },
-      { label: 'Mis Órdenes de Trabajo', icon: HardHat, path: '/mis-ots' },
+      { label: 'Mis Órdenes de Trabajo', icon: HardHat, path: '/mis-ots', todos: true },
     ],
   },
   {
     label: 'Emergencias',
-    items: [{ label: '🚨 Emergencias', icon: AlertTriangle, path: '/gestion/emergencias' }],
+    items: [{ label: '🚨 Emergencias', icon: AlertTriangle, path: '/gestion/emergencias', todos: true, pathOperario: '/emergencia' }],
   },
   {
     label: 'Operaciones',
@@ -88,13 +91,13 @@ export const navGroups: { label: string; items: Item[] }[] = [
   {
     label: 'Comunicación',
     items: [
-      { label: 'Foro de Comunicaciones', icon: MessageSquare, path: '/gestion/foro' },
-      { label: 'Sugerencias y problemas', icon: LifeBuoy, path: '/gestion/sugerencias' },
+      { label: 'Foro de Comunicaciones', icon: MessageSquare, path: '/gestion/foro', todos: true },
+      { label: 'Sugerencias y problemas', icon: LifeBuoy, path: '/gestion/sugerencias', todos: true },
     ],
   },
   {
     label: 'Ayuda y Aprendizaje',
-    items: [{ label: 'Centro de Aprendizaje', icon: BookOpen, path: '/gestion/ayuda' }],
+    items: [{ label: 'Centro de Aprendizaje', icon: BookOpen, path: '/gestion/ayuda', todos: true }],
   },
 ];
 
@@ -182,7 +185,7 @@ const CLAVE_GRUPOS = 'dh1-collapsed-nav';
 
 export function Sidebar({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const ruta = usePathname();
-  const { perfil, esGerencia } = useSesion();
+  const { perfil, esGerencia, entraAGestion } = useSesion();
   const [collapsed, setCollapsed] = useState(false);
   const [pendientesAprobacion, setPendientesAprobacion] = useState(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set(navGroups.map((g) => g.label)));
@@ -228,8 +231,13 @@ export function Sidebar({ open, onOpenChange }: { open: boolean; onOpenChange: (
   });
 
   const visibleGroups = useMemo(() => navGroups
-    .map((g) => ({ ...g, items: g.items.filter((i) => (!i.soloGerencia || esGerencia) && (!i.soloAdmin || perfil?.rol === 'admin')) }))
-    .filter((g) => g.items.length > 0), [esGerencia, perfil?.rol]);
+    .map((g) => ({
+      ...g,
+      items: g.items
+        .filter((i) => (entraAGestion || i.todos) && (!i.soloGerencia || esGerencia) && (!i.soloAdmin || perfil?.rol === 'admin'))
+        .map((i) => (!entraAGestion && i.pathOperario ? { ...i, path: i.pathOperario } : i)),
+    }))
+    .filter((g) => g.items.length > 0), [esGerencia, entraAGestion, perfil?.rol]);
 
   const cerrarMovil = useCallback(() => onOpenChange(false), [onOpenChange]);
 
