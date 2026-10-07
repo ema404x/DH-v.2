@@ -512,7 +512,7 @@ v1, reglas de la v2**. Fuente: el clon actual de la v1 (GitHub ema404x/DH1b44, 6
   fichaje, cuadrilla y "Reportar una emergencia". Con sesión, la pantalla va dentro del marco de la v1; el operario ve el menú
   recortado (Mis Órdenes, Emergencias → /emergencia, Foro, Sugerencias, Ayuda) y no ve el buscador.
 - PDF de la orden: `lib/pdfOT.ts` = exportWorkOrderPDF de la v1 (botón del panel). Logo de la v1 desde Base44; si no carga, el de `public/certificados`. "En validación" tiene su color (en la v1 caía en PENDIENTE).
-- Falta: portales públicos sin login (choca con decisión cerrada: el operario entra con su usuario).
+- Portales sin login: propuesta en `PROPUESTA-portales-sin-login.md` (opciones A/B/C, recomendada A). Falta la decisión de Emanuel.
 
 ## 4. Lo que falta (fuera de las 5 fases, en orden de valor)
 **La lista completa y priorizada contra la v1 está en `INVENTARIO-v1-v2.md` (relevada el 7/10/2026).** Va primero.
