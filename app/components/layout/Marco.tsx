@@ -118,7 +118,7 @@ export function Marco({ children, extra }: { children: ReactNode; extra?: ReactN
           </div>
         </header>
         <main className="main-scroll flex-1 overflow-y-auto overflow-x-hidden p-4 pb-24 sm:p-5 lg:p-6 lg:pb-6" style={{ background: 'transparent' }}>
-          <div className="page-enter space-y-5">{children}</div>
+          <div className="space-y-5">{children}</div>
         </main>
       </div>
       <MobileBottomNav onMore={() => setMobileNavOpen(true)} />

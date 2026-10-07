@@ -1,0 +1,17 @@
+// Tipos laxos para el componente de la v1 (JavaScript): se usa tal cual, sin chequeo de props.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export declare const DropdownMenu: any;
+export declare const DropdownMenuTrigger: any;
+export declare const DropdownMenuContent: any;
+export declare const DropdownMenuItem: any;
+export declare const DropdownMenuCheckboxItem: any;
+export declare const DropdownMenuRadioItem: any;
+export declare const DropdownMenuLabel: any;
+export declare const DropdownMenuSeparator: any;
+export declare const DropdownMenuShortcut: any;
+export declare const DropdownMenuGroup: any;
+export declare const DropdownMenuPortal: any;
+export declare const DropdownMenuSub: any;
+export declare const DropdownMenuSubContent: any;
+export declare const DropdownMenuSubTrigger: any;
+export declare const DropdownMenuRadioGroup: any;

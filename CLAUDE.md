@@ -62,7 +62,7 @@ rioplatense (voseo)**, directo, sin edulcorar.
     para elegir un registro (v1 bajaba 1500 registros al abrir el form de OT).
 13. **PWA con `@ducanh2912/next-pwa`** (Workbox, precache automático). Sin service worker a mano.
     **Sin recargas forzadas** al operario (podría perder un reporte a mitad).
-14. **Guía de estilo** (`guia-estilo-visual-dh1.md`): tema oscuro azulado de DH1, tokens en
+14. **Guía de estilo** — REEMPLAZADA el 7/10/2026 por el aspecto de la v1 (ver "Aspecto y Órdenes de Trabajo de la v1"). Texto original: (`guia-estilo-visual-dh1.md`): tema oscuro azulado de DH1, tokens en
     `globals.css` + `tailwind.config.ts`, **cero colores hardcodeados**, Inter, **16 px base, nada
     bajo 14 px en móvil**, **controles ≥44 px (48 px en campo)**, icono + texto en todo estado (nunca
     color solo), **los cuatro estados** en cada vista (cargando/vacío/error/datos), **un solo botón
@@ -478,6 +478,28 @@ certifica de más, la firma del gerente es la de quien aprueba). Se replicó des
   ítems; anticipo/fondo de reparo en % van sobre lo certificado del período (la v1 los tomaba del total del contrato
   en cada certificado) o como monto fijo; "Regenerar" solo rehace borradores; los emitidos no se borran.
 - Errores de la v1 que no se copiaron: números repetidos, fechas UTC, `parseMonto` que multiplicaba por 100.
+
+## Aspecto y Órdenes de Trabajo de la v1 (7/10/2026)
+Emanuel: "hay que pulir las ordenes de trabajo, todo tiene que ser idéntico a dh1 de base44", y eligió copiar **también el
+aspecto** de la v1 en toda la app (reemplaza la guía de estilo de la v2). Mismo criterio que Certificados: **pantalla de la
+v1, reglas de la v2**. Fuente: el clon actual de la v1 (GitHub ema404x/DH1b44, 6/10/2026); la copia local del 31/7 está vieja.
+- Tema: `globals.css` y `tailwind.config.ts` traen el `index.css`/`tailwind.config.js` de la v1 (colores shadcn, paleta
+  completa de Tailwind, `tailwindcss-animate`). Los tokens de la v2 (fondo, superficie, primario…) siguen y apuntan a la
+  misma paleta. Ojo: en la v1 clases como `border-white/8` NO generan nada (Tailwind 3 no las conoce); se copian literales
+  para que quede igual.
+- Componentes de interfaz de la v1 (shadcn, JavaScript) en `components/ui/*.jsx` con `.d.ts` laxos al lado
+  (`tsconfig` con `allowJs`). `lib/utils.ts` (`cn`), `hooks/use-mobile.jsx`.
+- Marco: `components/layout/` (Sidebar "DH1 Software Platform" con los grupos de la v1, barra superior, encabezado y barra
+  inferior del teléfono). Sin animación de entrada de página: el `transform` que deja rompe los paneles fijos.
+- Órdenes: `app/gestion/ots/page.tsx` = `pages/WorkOrders.jsx` (Kanban/Grilla, tarjetas de totales, Filtros, Campo,
+  Historial, Plantillas, QR); `components/ordenes/` (piezas, extras, secciones, DetallePanel = WorkOrderDetailPanel con
+  autoguardado); `lib/tablero.ts` (máquina de estados v1 → updates de la v2). Especificación completa: `ESPEC-OT-v1.md`.
+- Diferencias a sabiendas (reglas v2 o falta de columna): no existe el estado "Obra"/Futura Obra (columna y tarjeta quedan
+  en 0, no hay botón "Obra"); no hay "Completar" desde cualquier estado (solo aprobar desde Validación); el responsable se
+  elige de la lista de usuarios (no texto libre); "archivadas" = completadas hace más de 30 días (calculado); "vencida" en
+  el tablero usa la regla de la v1 (en progreso con fecha pasada); sin firma en la orden (no hay columna); el PDF abre la
+  hoja imprimible de la v2; el QR es el de la ubicación (o el enlace a la orden). Sin tiempo real: recarga cada 30 s.
+- Falta: Crear OT (asistente de 3 pasos de la v1), Mis Órdenes del operario y portales, PDF jsPDF de la orden.
 
 ## 4. Lo que falta (fuera de las 5 fases, en orden de valor)
 **La lista completa y priorizada contra la v1 está en `INVENTARIO-v1-v2.md` (relevada el 7/10/2026).** Va primero.
