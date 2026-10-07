@@ -469,8 +469,10 @@ Edge function `leer-contrato-pdf` (Gemini gratis, mismo `GEMINI_API_KEY` que el 
 bucket `documentos` con la sesión del usuario, solo gerencia; no guarda nada) + `FormContrato` (arrastrar el PDF,
 control de la suma contra el total del documento con 0,5 % de tolerancia, renglones que parecen subtotal marcados,
 "pedir a la IA que corrija") + botón "Ver PDF del ADA" en el contrato (`contratos.ada_pdf_url`). Sin cambios de SQL.
-Verificado: `deno check`, 4 pruebas de `control.test.ts`, `tsc`. **Falta**: desplegar la función (OK de Emanuel) y
-probarla con un ADA real; ver el formulario en pantalla (Chrome no estaba conectado).
+Verificado: `deno check`, 4 pruebas de `control.test.ts`, `tsc`. **Desplegada el 7/10/2026** (`--no-verify-jwt`, como las otras;
+responde 401 sin sesión, o sea que el secreto de Gemini está). Deploy desde esta PC: `node_modules/@supabase/cli-windows-x64/bin/supabase.exe` directo
+(`npx supabase` falla por la ruta virtualizada); login con `npx.cmd supabase login` (PowerShell bloquea `npx.ps1`). **Falta**:
+probarla con un ADA real.
 
 - **Prueba de aceptación del aislamiento contra el Supabase real** (§7) — antes que nada.
 - **Alta en Auth de los perfiles migrados**: el script deja `migracion/perfiles_pendientes.json`;
