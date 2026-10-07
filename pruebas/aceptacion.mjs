@@ -26,7 +26,7 @@ await db.exec(`
   grant execute on function auth.uid() to anon, authenticated, service_role;
 `);
 
-for (const f of ['dh1-v2-fundacion.sql', 'dh1-v2-fase3-gestion.sql', 'dh1-v2-fase4-certificacion.sql', 'dh1-v2-fase5-migracion.sql', 'dh1-v2-fase6-operacion.sql', 'dh1-v2-fase7-informe-ia.sql', 'dh1-v2-fase8-gente.sql', 'dh1-v2-fase9-obras.sql', 'dh1-v2-fase10-panol.sql', 'dh1-v2-fase11-control.sql', 'dh1-v2-fase12-administracion.sql', 'dh1-v2-fase13-ajustes.sql']) {
+for (const f of ['dh1-v2-fundacion.sql', 'dh1-v2-fase3-gestion.sql', 'dh1-v2-fase4-certificacion.sql', 'dh1-v2-fase5-migracion.sql', 'dh1-v2-fase6-operacion.sql', 'dh1-v2-fase7-informe-ia.sql', 'dh1-v2-fase8-gente.sql', 'dh1-v2-fase9-obras.sql', 'dh1-v2-fase10-panol.sql', 'dh1-v2-fase11-control.sql', 'dh1-v2-fase12-administracion.sql', 'dh1-v2-fase13-ajustes.sql', 'dh1-v2-fase14-certificados-v1.sql']) {
   try {
     await db.exec(readFileSync(join(raiz, f), 'utf8'));
     console.log(`cargado  ${f}`);
@@ -271,7 +271,7 @@ await como(U.gerB);
 await rechaza('un contrato de escuela no existe para gerencia de bapro', `select crear_certificado($1, 'Sep 2026')`, /no existe o no es de tu sector/, [k.id]);
 
 await como(U.jefeE);
-await rechaza('los certificados no se insertan a mano', `insert into certificados (contrato_id, periodo) values ($1, 'x')`, /se crean desde el contrato/, [k.id]);
+await rechaza('los certificados no se insertan a mano', `insert into certificados (contrato_id, periodo) values ($1, 'x')`, /se crean con "Nuevo certificado"/, [k.id]);
 const c1 = (await uno(`select crear_certificado($1, 'Septiembre 2026') as id`, [k.id])).id;
 await rechaza('un solo borrador por contrato', `select crear_certificado($1, 'Octubre 2026')`, /ya tiene un certificado en borrador/, [k.id]);
 await db.query(`update certificado_items set med_presente_unidad = 40, med_acum_anterior_unidad = 999, importe_unitario = 1
@@ -1298,6 +1298,92 @@ ok('las cantidades se leen con su unidad y en plural', txt.a === '3 unidades' &&
 await como(U.gerE);
 const alStock = await q(`select detalle from v_alertas where tipo = 'stock'`);
 ok('la alerta de stock muestra la unidad legible', alStock.every((a) => !/ (metro|litro|unidad)( |$)/.test(a.detalle)), JSON.stringify(alStock));
+
+titulo('16. Certificados como la v1 (fase 14)');
+await como(U.gerE);
+const x16pdfObra = {
+  contrato: { tipo: 'obra', contratista: 'Constructora Sur', obra_servicio: 'Refacción baños', emprendimiento: 'EDUCACION COMUNA 8A',
+              ada_numero: 'ADA-777', oc_numero: 'OC-9', base: 'Base Norte', plazo: '90 días', ada_pdf_url: 'x/contratos/ada.pdf' },
+  items: [
+    { descripcion: 'Demolición', um: 'gl', cantidad: 1, importe_unitario: 1000000, presente_importe: 1000000 },
+    { descripcion: 'Revoque', um: 'm2', cantidad: 3, importe_unitario: 333.33, presente_importe: 333.33 },
+  ],
+  cabecera: { periodo: 'Octubre 2026', numero_recepcion: 'R-1', anticipo_monto_manual: 50000, fondo_reparo_pct: 5,
+              fondo_reparo_aplicar: true, fondo_reparo_label: 'Garantía', avance_obra_pct: 40 },
+};
+const x16c1 = (await uno(`select guardar_certificado($1::jsonb) as id`, [JSON.stringify(x16pdfObra)])).id;
+const x16vc1 = await uno(`select * from v_certificados where id = $1`, [x16c1]);
+ok('desde el PDF se crea el contrato con sus datos y un borrador sin número', x16vc1.estado === 'borrador' && x16vc1.numero === null
+  && x16vc1.contratista === 'Constructora Sur' && x16vc1.base === 'Base Norte' && x16vc1.ada_pdf_url === 'x/contratos/ada.pdf' && x16vc1.tipo === 'obra', JSON.stringify(x16vc1));
+const x16lin1 = await q(`select numero, med_presente_unidad::float u, med_presente_importe::float i, presente_por_importe from certificado_items where certificado_id = $1 order by numero`, [x16c1]);
+ok('"A certificar $" se guarda en pesos y la base deriva las unidades', x16lin1[1].i === 333.33 && x16lin1[1].u === 1 && x16lin1[1].presente_por_importe, JSON.stringify(x16lin1));
+ok('anticipo en monto fijo y fondo de reparo con su nombre', Number(x16vc1.anticipo_monto) === 50000 && Number(x16vc1.fondo_reparo_monto) === Math.round(1000333.33 * 5) / 100
+  && x16vc1.fondo_reparo_nombre === 'Garantía' && Math.abs(Number(x16vc1.total_neto) - (Number(x16vc1.subtotal_presente) - 50000 - Number(x16vc1.fondo_reparo_monto))) < 0.005, JSON.stringify({ a: x16vc1.anticipo_monto, f: x16vc1.fondo_reparo_monto, n: x16vc1.total_neto }));
+await db.query(`update certificados set anticipo_monto_manual = null, anticipo_pct = 10 where id = $1`, [x16c1]);
+ok('cambiar las deducciones de la cabecera rehace los totales', Number((await uno(`select anticipo_monto from certificados where id = $1`, [x16c1])).anticipo_monto) === 100033.33);
+await rechaza('un certificado de obra se emite con la firma del jefe de sitio', `select emitir_certificado($1)`, /firma el jefe de sitio/, [x16c1]);
+await como(U.jefeE);
+const x16n1 = (await uno(`select emitir_certificado($1, 'data:image/png;base64,AAA') as n`, [x16c1])).n;
+const x16e1 = await uno(`select estado, numero, firma_jefe_url, firma_jefe_nombre from certificados where id = $1`, [x16c1]);
+ok('al emitir se numera y queda la firma del jefe con su nombre', x16n1 === 1 && x16e1.estado === 'emitido' && x16e1.firma_jefe_url && x16e1.firma_jefe_nombre, JSON.stringify(x16e1));
+const x16sol1 = await uno(`select estado, monto_solicitado::float m, certificado_id from solicitudes_certificado where certificado_id = $1`, [x16c1]);
+ok('la solicitud de aprobación sale sola, enviada y con el monto', x16sol1 && x16sol1.estado === 'enviada' && x16sol1.m === 1000333.33, JSON.stringify(x16sol1));
+await rechaza('un jefe no crea un contrato nuevo desde el PDF', `select guardar_certificado($1::jsonb)`, /lo carga gerencia/,
+  [JSON.stringify({ ...x16pdfObra, contrato: { ...x16pdfObra.contrato, ada_numero: 'ADA-NUEVA' } })]);
+await como(U.gg);
+await db.query(`update perfiles set firma_url = 'data:image/png;base64,FIRMAGG' where id = $1`, [U.gg]);
+await db.query(`select aprobar_certificado($1)`, [x16c1]);
+const x16a1 = await uno(`select c.estado, c.firma_url, s.estado as sol from certificados c join solicitudes_certificado s on s.certificado_id = c.id where c.id = $1`, [x16c1]);
+ok('aprobar usa la firma del perfil y aprueba la solicitud vinculada', x16a1.estado === 'aprobado' && x16a1.firma_url === 'data:image/png;base64,FIRMAGG' && x16a1.sol === 'aprobada', JSON.stringify(x16a1));
+await como(U.gerE);
+const x16c2 = (await uno(`select guardar_certificado($1::jsonb) as id`, [JSON.stringify({ ...x16pdfObra, items: undefined, cabecera: { periodo: 'Noviembre 2026' } })])).id;
+const x16vc2 = await uno(`select contrato_id, acum_anterior_importe::float ant from v_certificados where id = $1`, [x16c2]);
+ok('un PDF con el mismo N° de ADA usa el mismo contrato y arrastra lo certificado', x16vc2.contrato_id === x16vc1.contrato_id && x16vc2.ant === 1000333.33, JSON.stringify(x16vc2));
+const x16it2 = await q(`select contrato_item_id as id, importe_total::float t, med_acum_anterior_importe::float a from certificado_items where certificado_id = $1 order by numero`, [x16c2]);
+ok('el segundo certificado parte con el acumulado anterior por ítem', x16it2[0].a === 1000000 && x16it2[1].a === 333.33, JSON.stringify(x16it2));
+await db.query(`select guardar_certificado($1::jsonb)`, [JSON.stringify({ certificado_id: x16c2,
+  items: [{ id: x16it2[0].id, descripcion: 'Demolición', um: 'gl', cantidad: 1, importe_unitario: 1000000, presente_importe: 1 },
+          { id: x16it2[1].id, descripcion: 'Revoque', um: 'm2', cantidad: 3, importe_unitario: 333.33, presente_importe: 0 }] })]);
+await rechaza('no se certifica más que el importe del ítem (en pesos)', `select emitir_certificado($1, 'data:image/png;base64,AAA')`, /Sobre-certificación en el ítem 1/, [x16c2]);
+await rechaza('los ítems ya certificados no cambian de precio', `select guardar_certificado($1::jsonb)`, /ya tiene certificados emitidos/, [JSON.stringify({ certificado_id: x16c2,
+  items: [{ id: x16it2[0].id, descripcion: 'Demolición', um: 'gl', cantidad: 1, importe_unitario: 2000000, presente_importe: 0 },
+          { id: x16it2[1].id, descripcion: 'Revoque', um: 'm2', cantidad: 3, importe_unitario: 333.33, presente_importe: 0 }] })]);
+await db.query(`delete from certificados where id = $1`, [x16c2]);
+ok('un borrador se puede borrar', !(await q(`select 1 from certificados where id = $1`, [x16c2])).length);
+
+// abonos maestros
+const x16ab = (await uno(`select guardar_abono($1::jsonb) as id`, [JSON.stringify({
+  rubro: 'CORTE_DE_PASTO', comuna: '8B', contratista: 'Verde SRL', ada_numero: 'ADA-PASTO', obra_servicio: 'Corte de pasto',
+  fecha_oc_emision: '2026-03-15', duracion_meses: 12, items: [{ descripcion: 'Corte mensual', um: 'MES', cantidad: 1, importe_unitario: 250000 }] })])).id;
+const x16kab = await uno(`select fecha_inicio::text fi, fecha_fin::text ff, monto_contratado::float m, rubro, comuna, (select cantidad::float from contrato_items where contrato_id = c.id) cant from contratos c where id = $1`, [x16ab]);
+ok('el abono arranca el mes siguiente a la OC, dura lo indicado y guarda toda la vigencia', x16kab.fi === '2026-04-01' && x16kab.ff === '2027-03-31' && x16kab.m === 3000000 && x16kab.cant === 12 && x16kab.rubro === 'CORTE_DE_PASTO', JSON.stringify(x16kab));
+const x16otroAbono = (await uno(`select guardar_abono($1::jsonb) as id`, [JSON.stringify({
+  rubro: 'ASCENSORES', comuna: '10A', contratista: 'Elevar SA', fecha_oc_emision: '2026-01-10', duracion_meses: 6,
+  items: [{ descripcion: 'Mantenimiento', um: 'MES', cantidad: 1, importe_unitario: 100000 }] })])).id;
+await como(U.jefeE);
+await rechaza('los abonos los carga gerencia', `select guardar_abono($1::jsonb)`, /los carga gerencia/, [JSON.stringify({ contratista: 'x', fecha_oc_emision: '2026-01-01', duracion_meses: 1, items: [] })]);
+const x16rMes = (await uno(`select certificar_abonos_del_mes('2026-05-01', null, array['8B']) as r`)).r;
+const x16deAb = x16rMes.contratos.find((x) => x.contrato_id === x16ab);
+ok('certificar el mes filtra por comuna y emite la parte del mes', x16rMes.contratos.every((x) => x.comuna === '8B') && x16deAb?.resultado === 'emitido' && Number(x16deAb.monto) === 250000, JSON.stringify(x16rMes));
+const x16cAb = await uno(`select generado_automaticamente, (select count(*)::int from solicitudes_certificado s where s.certificado_id = c.id) sols from certificados c where id = $1`, [x16deAb.certificado_id]);
+ok('queda marcado como automático y sin solicitud (como la v1)', x16cAb.generado_automaticamente === true && x16cAb.sols === 0, JSON.stringify(x16cAb));
+ok('el mismo mes no se certifica dos veces', (await uno(`select certificar_abonos_del_mes('2026-05-01', $1) as r`, [x16ab])).r.contratos[0].resultado === 'ya_certificado');
+await rechaza('no se certifica un mes que no empezó', `select certificar_abonos_del_mes((date_trunc('month', now()) + interval '2 month')::date)`, /todavía no empezó/);
+ok('el último día hábil saltea fines de semana y feriados', (await uno(`select ultimo_dia_habil('2026-10-05')::text a, ultimo_dia_habil('2026-08-03')::text b, ultimo_dia_habil('2026-01-20')::text c`)).a === '2026-10-30');
+const x16auto = (await uno(`select certificados_automaticos(true) as r`)).r;
+ok('la emisión automática forzada emite el mes siguiente', x16auto.ejecutado === true && x16auto.mes === new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString().slice(0, 7) && /certificados generados/.test(x16auto.mensaje), JSON.stringify(x16auto).slice(0, 300));
+await como(U.gerE);
+await db.query(`select guardar_abono($1::jsonb)`, [JSON.stringify({ id: x16otroAbono, contratista: 'Elevar SA', fecha_oc_emision: '2026-01-10', duracion_meses: 6, estado: 'pausado',
+  items: [{ id: (await uno(`select id from contrato_items where contrato_id = $1`, [x16otroAbono])).id, descripcion: 'Mantenimiento', um: 'MES', cantidad: 1, importe_unitario: 100000 }] })]);
+ok('un abono pausado no se certifica', !(await uno(`select certificar_abonos_del_mes('2026-05-01', $1) as r`, [x16otroAbono])).r.contratos.length);
+await servicio();
+const x16srv = (await uno(`select certificar_abonos_del_mes('2026-06-01', $1) as r`, [x16ab])).r.contratos[0];
+const x16srvC = await uno(`select c.estado, c.subtotal_presente::float s, c.acum_anterior_importe::float a, c.emitido_por, c.generado_automaticamente g
+  from certificados c where c.id = $1`, [x16srv?.certificado_id]);
+ok('la tarea sin usuario emite el mes con la misma cuenta (parte del mes y acumulado anterior)', x16srv?.resultado === 'emitido'
+  && x16srvC.s === 250000 && x16srvC.a > 0 && x16srvC.emitido_por === null && x16srvC.g === true, JSON.stringify({ x16srv, x16srvC }));
+const x16autoSrv = (await uno(`select certificados_automaticos(false) as r`)).r;
+ok('la emisión automática sin usuario solo corre el último día hábil', typeof x16autoSrv.ejecutado === 'boolean' && /hábil|Emisión/.test(x16autoSrv.mensaje), JSON.stringify(x16autoSrv).slice(0, 200));
 
 // ---------------------------------------------------------------- resultado
 await servicio();
