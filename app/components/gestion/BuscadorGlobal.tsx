@@ -65,12 +65,12 @@ export function BuscadorGlobal() {
 
   if (!abierto) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-fondo/70 p-4 pt-[10vh] backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Buscar en todo"
+    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 px-4 pt-[6vh] backdrop-blur-sm sm:pt-[10vh]" role="dialog" aria-modal="true" aria-label="Buscar en todo"
       onClick={() => setAbierto(false)}>
-      <div className="w-full max-w-xl overflow-hidden rounded-lg border bg-superficie shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2 border-b px-3">
-          <Search className="h-5 w-5 text-suave" aria-hidden />
-          <input ref={entrada} className="min-h-campo flex-1 bg-transparent text-base outline-none" placeholder="Buscar órdenes, obras, lugares, personas, materiales…"
+      <div className="relative w-full max-w-lg overflow-hidden rounded-xl border border-border bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 border-b border-border px-3 py-1 sm:gap-3 sm:px-4">
+          <Search className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden />
+          <input ref={entrada} className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" placeholder="Buscar órdenes, obras, lugares, personas, materiales…"
             value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar"
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') { e.preventDefault(); setActivo((a) => Math.min(a + 1, res.length - 1)); }
@@ -80,19 +80,19 @@ export function BuscadorGlobal() {
           {estado === 'buscando' && <Loader2 className="h-5 w-5 animate-spin text-suave" aria-hidden />}
           <button type="button" onClick={() => setAbierto(false)} aria-label="Cerrar" className="flex min-h-control min-w-control items-center justify-center rounded text-suave hover:bg-elevado"><X className="h-5 w-5" aria-hidden /></button>
         </div>
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div className="max-h-80 overflow-y-auto">
           {estado === 'error' && <p className="p-4 text-peligro">{error}</p>}
-          {q.trim().length < 2 ? <p className="p-4 text-sm text-suave">Escribí al menos dos letras. Atajo: Ctrl+K.</p>
-            : res.length === 0 && estado === 'quieto' ? <p className="p-4 text-sm text-suave">Sin resultados.</p> : (
+          {q.trim().length < 2 ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">Escribí al menos 2 caracteres para buscar</p>
+            : res.length === 0 && estado === 'quieto' ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">No se encontraron resultados para &quot;<span className="font-medium">{q}</span>&quot;</p> : (
               <ul role="listbox">
                 {res.map((h, i) => (
                   <li key={`${h.tipo}-${h.id}`} role="option" aria-selected={i === activo}>
                     <button type="button" onClick={() => ir(h)} onMouseEnter={() => setActivo(i)}
-                      className={`flex w-full items-start gap-3 px-4 py-2 text-left ${i === activo ? 'bg-elevado' : ''}`}>
-                      <span className="mt-0.5 w-24 shrink-0 text-xs text-suave">{TIPOS[h.tipo] ?? h.tipo}</span>
+                      className={`flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-accent ${i === activo ? 'bg-accent' : ''}`}>
+                      <span className="mt-0.5 w-24 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{TIPOS[h.tipo] ?? h.tipo}</span>
                       <span className="min-w-0">
-                        <span className="block truncate font-medium">{h.titulo}</span>
-                        {h.detalle && <span className="block truncate text-sm text-suave">{detalle(h)}</span>}
+                        <span className="block truncate text-sm font-medium">{h.titulo}</span>
+                        {h.detalle && <span className="block truncate text-xs text-muted-foreground">{detalle(h)}</span>}
                       </span>
                     </button>
                   </li>

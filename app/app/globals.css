@@ -2,30 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tokens de DH1: tema oscuro azulado. Son la única fuente de color de toda la app
-   (tailwind.config.ts los expone como clases). Valores en HSL sin la función, para poder usar opacidad. */
+/* Tema de la v1 (DH1 en Base44, src/index.css): oscuro azul marino con acento cian.
+   Los colores de shadcn (background, card, primary…) son los de la v1; los tokens de la v2
+   (fondo, superficie, primario…) apuntan a la misma paleta para que todas las pantallas se vean igual.
+   Valores en HSL sin la función, para poder usar opacidad. */
 @layer base {
   :root {
-    --fondo: 215 30% 9%;
-    --barra: 215 45% 7%;
-    --superficie: 215 28% 13%;
-    --elevado: 215 25% 18%;
-    --borde: 215 22% 26%;
-    --texto: 215 12% 93%;
-    --suave: 215 12% 68%;
-    --primario: 213 90% 55%;
-    --sobre-primario: 0 0% 100%;
-    --exito: 142 60% 50%;
-    --alerta: 40 92% 58%;
-    --peligro: 0 84% 66%;
-    --info: 199 85% 60%;
+    --background: 217 33% 17%;
+    --foreground: 214 32% 91%;
+    --card: 215 25% 27%;
+    --card-foreground: 214 32% 91%;
+    --popover: 215 25% 22%;
+    --popover-foreground: 214 32% 91%;
+    --primary: 189 90% 43%;
+    --primary-foreground: 190 78% 15%;
+    --secondary: 215 25% 27%;
+    --secondary-foreground: 214 32% 91%;
+    --muted: 215 20% 25%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 215 25% 30%;
+    --accent-foreground: 214 32% 91%;
+    --destructive: 351 96% 71%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 215 16% 35%;
+    --input: 215 16% 35%;
+    --ring: 189 90% 43%;
+    --chart-1: 189 90% 43%;
+    --chart-2: 187 92% 70%;
+    --chart-3: 142 68% 44%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 351 96% 71%;
+    --radius: 0.625rem;
+    --sidebar-background: 224 71% 12%;
+    --sidebar-foreground: 213 18% 75%;
+    --sidebar-primary: 189 90% 43%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 42% 15%;
+    --sidebar-accent-foreground: 213 15% 92%;
+    --sidebar-border: 220 35% 18%;
+    --sidebar-ring: 189 90% 43%;
+
+    /* tokens de la v2, sobre la paleta de la v1 */
+    --fondo: 217 33% 17%;
+    --barra: 224 71% 12%;
+    --superficie: 215 25% 27%;
+    --elevado: 215 25% 32%;
+    --borde: 215 16% 35%;
+    --texto: 214 32% 91%;
+    --suave: 215 20% 65%;
+    --primario: 189 90% 43%;
+    --sobre-primario: 190 78% 15%;
+    --exito: 142 68% 44%;
+    --alerta: 38 92% 50%;
+    --peligro: 351 96% 71%;
+    --info: 187 92% 70%;
     /* series para distinguir categorías en el mapa (zonas, jefes de sitio) */
-    --serie-1: 213 90% 62%;
+    --serie-1: 189 90% 50%;
     --serie-2: 280 70% 70%;
-    --serie-3: 160 60% 50%;
+    --serie-3: 142 60% 50%;
     --serie-4: 30 90% 60%;
     --serie-5: 330 75% 68%;
-    --serie-6: 190 80% 55%;
+    --serie-6: 213 90% 62%;
     --serie-7: 55 85% 58%;
     --serie-8: 215 12% 75%;
     /* hoja impresa */
@@ -33,28 +70,209 @@
     --tinta: 215 30% 12%;
     color-scheme: dark;
   }
+}
 
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
   html {
-    font-size: 16px;
     -webkit-text-size-adjust: 100%;
   }
-
   body {
-    @apply bg-fondo font-sans text-base text-texto antialiased;
-    overscroll-behavior-y: none;
+    @apply bg-background font-inter text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overscroll-behavior: none;
   }
 
-  * {
-    @apply border-borde;
-    /* Barras de desplazamiento finas y del color del tema (la del sistema es clara y con flechas). */
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--borde)) transparent;
+  /* Prevent text selection on interactive elements */
+  button, nav, [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Ensure 44px minimum tap targets on mobile */
+  @media (max-width: 1023px) {
+    button.h-8, button.h-9,
+    a.h-8, a.h-9 {
+      min-height: 2.75rem;
+    }
   }
 
   :focus-visible {
-    @apply outline outline-2 outline-offset-2 outline-primario;
+    @apply outline outline-2 outline-offset-2 outline-primary;
   }
 
+  /* Mobile select — invisible Radix Content wrapper that provides context
+     while Vaul Drawer renders the visible bottom sheet inside it */
+  .select-mobile-wrapper {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    transform: none !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+  }
+  /* Glow pulse text animation */
+  @keyframes glowPulse {
+    0%, 100% { text-shadow: 0 0 4px rgba(100,200,255,0.4), 0 0 10px rgba(0,200,180,0.25); }
+    50%       { text-shadow: 0 0 10px rgba(100,220,255,0.95), 0 0 22px rgba(0,230,200,0.7), 0 0 40px rgba(80,180,255,0.4); }
+  }
+
+  /* Custom scrollbar — blue to yellow bright flow */
+  @keyframes scrollbarFlow {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: 0% 400%; }
+  }
+  @keyframes scrollbarGlow {
+    0%, 100% { box-shadow: inset 0 1px 2px rgba(255,255,255,0.4), 0 0 8px rgba(0,150,255,0.7); }
+    33%      { box-shadow: inset 0 1px 2px rgba(255,255,255,0.4), 0 0 10px rgba(0,220,255,0.8); }
+    66%      { box-shadow: inset 0 1px 2px rgba(255,255,255,0.4), 0 0 12px rgba(255,225,0,0.8); }
+  }
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: #00b4ff transparent;
+  }
+  ::-webkit-scrollbar { width: 13px; height: 13px; }
+  ::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.25);
+    border-radius: 99px;
+    margin: 3px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg,
+      #0066ff 0%,
+      #00b4ff 25%,
+      #00e5ff 50%,
+      #ffe100 75%,
+      #ffcc00 100%);
+    background-size: 100% 300%;
+    border-radius: 99px;
+    border: 2px solid rgba(0,0,0,0.2);
+    background-clip: padding-box;
+    animation: scrollbarFlow 3s linear infinite,
+               scrollbarGlow 2.5s ease-in-out infinite;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg,
+      #3399ff 0%,
+      #33ccff 25%,
+      #66f0ff 50%,
+      #fff04d 75%,
+      #ffd633 100%);
+    background-size: 100% 300%;
+    background-clip: padding-box;
+    border: 2px solid rgba(0,0,0,0.2);
+    animation: scrollbarFlow 1.5s linear infinite,
+               scrollbarGlow 1.2s ease-in-out infinite;
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg,
+      #0066ff 0%,
+      #00e5ff 50%,
+      #ffcc00 100%);
+    background-size: 100% 300%;
+    background-clip: padding-box;
+    border: 2px solid rgba(0,0,0,0.2);
+    animation: scrollbarFlow 0.8s linear infinite,
+               scrollbarGlow 0.6s ease-in-out infinite;
+  }
+  ::-webkit-scrollbar-corner { background: transparent; }
+
+  /* Scrollbar del área de contenido principal — estático, ancho y fácil de agarrar.
+     Reemplaza el scrollbar animado (gradiente + glow) que es difícil de agarrar
+     con el mouse/trackpad y obliga a "arrastrar la barra del costado". */
+  .main-scroll {
+    scrollbar-width: auto;
+    scrollbar-color: rgba(148, 163, 184, 0.6) rgba(15, 23, 42, 0.3);
+    scroll-behavior: smooth;
+  }
+  .main-scroll::-webkit-scrollbar {
+    width: 14px;
+    height: 14px;
+  }
+  .main-scroll::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.25);
+    border-radius: 99px;
+    margin: 4px;
+  }
+  .main-scroll::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.55);
+    border-radius: 99px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  .main-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(203, 213, 225, 0.8);
+    background-clip: padding-box;
+    border: 3px solid transparent;
+  }
+  .main-scroll::-webkit-scrollbar-thumb:active {
+    background: rgba(148, 163, 184, 0.9);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+  }
+
+  /* Card hover lift */
+  .card-lift {
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px -8px rgba(0,0,0,0.35);
+  }
+
+  /* Subtle fade-in for page transitions */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .page-enter {
+    animation: fadeInUp 0.22s ease both;
+  }
+
+  /* Tabular numeric figures — use on any column with numbers */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Table enhancements — consistent row density */
+  table thead th {
+    font-variant-numeric: tabular-nums;
+  }
+  table tbody td.num,
+  table tfoot td.num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    font-weight: 500;
+  }
+
+  /* Mono code / SAP numbers */
+  .font-mono {
+    font-feature-settings: "zero", "tnum";
+  }
+
+  /* Skeleton shimmer */
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted-foreground)/0.08) 50%, hsl(var(--muted)) 75%);
+    background-size: 800px 100%;
+    animation: shimmer 1.5s infinite linear;
+    border-radius: 6px;
+  }
+
+  /* ── v2 ── */
   h1 { @apply text-xl font-semibold; }
   h2 { @apply text-lg font-semibold; }
 
@@ -71,11 +289,11 @@
   }
 
   .control {
-    @apply min-h-control w-full rounded border bg-elevado px-3 text-base text-texto placeholder:text-suave;
+    @apply min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base text-foreground shadow-sm placeholder:text-muted-foreground md:text-sm;
   }
 
   .etiqueta {
-    @apply mb-1 block text-sm font-medium text-suave;
+    @apply mb-1.5 block text-sm font-medium leading-none text-foreground;
   }
 
   .esqueleto {
@@ -127,3 +345,53 @@
     @apply text-tinta/70;
   }
 }
+
+/* ═══ Acero Design System ═══ */
+@keyframes aceroRise {
+  from { opacity: 0; transform: translateY(13px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes aceroDrift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -5px, 0); }
+}
+
+.acero-hero-overlay {
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.58) 47%, rgba(15, 23, 42, 0.18));
+}
+
+.acero-image-panel-overlay {
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.98), rgba(30, 41, 59, 0.57), rgba(30, 41, 59, 0.25));
+}
+
+.acero-rise { animation: aceroRise 0.55s cubic-bezier(0.2, 0.75, 0.25, 1) both; }
+.acero-drift { animation: aceroDrift 7s ease-in-out infinite; }
+
+.acero-kpi {
+  transition: box-shadow 0.18s, background 0.18s;
+}
+.acero-kpi:hover {
+  background: hsl(215 25% 32%);
+  box-shadow: 0 17px 31px rgba(15, 23, 42, 0.3);
+}
+.acero-kpi:active {
+  background: hsl(215 25% 25%);
+}
+
+.acero-quick-item {
+  transition: background 0.18s, box-shadow 0.18s, color 0.18s;
+}
+.acero-quick-item:hover {
+  background: hsl(215 25% 30%);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.22);
+}
+.acero-quick-item:active {
+  background: hsl(var(--background));
+}
+
+.acero-section-link {
+  transition: color 0.18s;
+}
+.acero-section-link:hover { color: hsl(38 92% 50%); }
+.acero-section-link:active { color: hsl(187 92% 70%); }

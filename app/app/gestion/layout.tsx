@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { AlertaEmergencias } from '@/components/Emergencias';
 import { BuscadorGlobal } from '@/components/gestion/BuscadorGlobal';
-import { Nav } from '@/components/gestion/Nav';
+import { Marco } from '@/components/layout/Marco';
 import { ErrorVista, Esqueleto } from '@/components/Estados';
 import { useSesion } from '@/lib/sesion';
 
@@ -51,11 +51,8 @@ export default function GestionLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="lg:flex">
-      <AlertaEmergencias />
-      <BuscadorGlobal />
-      <Nav />
-      <main className="min-w-0 flex-1 space-y-5 p-4 lg:p-6">{children}</main>
-    </div>
+    <Marco extra={<><AlertaEmergencias /><BuscadorGlobal /></>}>
+      {children}
+    </Marco>
   );
 }
