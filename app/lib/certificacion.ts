@@ -49,8 +49,61 @@ export interface NuevoContrato {
   anticipo_pct: number;
   fondo_reparo_pct: number;
   fondo_reparo_aplicar: boolean;
+  emprendimiento?: string | null;
+  plazo?: string | null;
+  condiciones_pago?: string | null;
+  // El PDF del ADA en el bucket "documentos", si el contrato se cargó desde el PDF.
+  ada_pdf_url?: string | null;
   items: NuevoItem[];
 }
+
+// ------------------------------------------------------------------ lectura del ADA con IA
+
+export interface ItemLeido extends NuevoItem {
+  subtotal_sospechoso: boolean;
+}
+
+export interface ControlSuma {
+  total_items: number;
+  total_documento: number | null;
+  coincide: boolean | null;
+  diferencia: number | null;
+}
+
+export interface ContratoLeido {
+  tipo: 'abono_mensual' | 'obra' | 'certificado_avance';
+  contratista: string;
+  contratista_cuit: string;
+  obra_servicio: string;
+  emprendimiento: string;
+  ada_numero: string;
+  oc_numero: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  plazo: string;
+  condiciones_pago: string;
+  anticipo_pct: number;
+  fondo_reparo_pct: number;
+  items: ItemLeido[];
+}
+
+async function llamarLector<T>(cuerpo: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase().functions.invoke('leer-contrato-pdf', { body: cuerpo });
+  if (error) {
+    const detalle = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    throw new Error(detalle?.error ?? 'No se pudo leer el PDF. Revisá la conexión y probá de nuevo.');
+  }
+  if (data?.error) throw new Error(data.error);
+  return data as T;
+}
+
+// `path`: el PDF ya subido al bucket "documentos" (subirDocumento). La IA no guarda nada: devuelve los datos
+// para que una persona los revise en el formulario.
+export const leerContratoPDF = (path: string, tipo: 'auto' | 'abono_mensual' | 'obra') =>
+  llamarLector<{ datos: ContratoLeido; validacion: ControlSuma; aviso?: string }>({ accion: 'leer', path, tipo: tipo === 'auto' ? null : tipo });
+
+export const corregirItemsPDF = (path: string, totalDocumento: number, totalItems: number) =>
+  llamarLector<{ items: ItemLeido[]; validacion: ControlSuma }>({ accion: 'corregir', path, total_documento: totalDocumento, total_items: totalItems });
 
 export async function crearContrato(c: NuevoContrato): Promise<string> {
   const sb = supabase();

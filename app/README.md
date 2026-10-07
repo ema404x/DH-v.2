@@ -83,6 +83,20 @@ En el plan gratis, Google puede usar lo que se le envía (notas y fotos) para me
 activada, no. La función pide que no se guarde la conversación (`store: false`).
 Lee y guarda con la sesión del usuario, así que valen la RLS de sector y los permisos de rol.
 
+## Edge function `leer-contrato-pdf`
+
+Lee con Gemini el PDF de un ADA, orden de compra o presupuesto y devuelve la cabecera y los ítems para el formulario
+de contrato (Certificación → Nuevo contrato → arrastrar el PDF). No guarda nada: una persona revisa y guarda.
+Compara la suma de los ítems con el total del documento (±0,5 %), marca los renglones que parecen subtotales y, si no
+cuadra, ofrece pedirle a la IA que los corrija (como `extractADA` + `correctADAItems` de la v1).
+El PDF se sube antes al bucket `documentos` (carpeta del sector) y la función lo baja con la sesión del usuario;
+queda guardado con el contrato (`contratos.ada_pdf_url`). Solo gerencia. Usa el mismo `GEMINI_API_KEY`.
+
+```bash
+npx supabase functions deploy leer-contrato-pdf
+npx deno test supabase/functions/leer-contrato-pdf/control.test.ts   # pruebas sin IA
+```
+
 ## Planillas de Excel
 
 Información general, Pendientes SAP y Calefacción importan planillas `.xlsx` (no `.xls` ni `.csv`: hay que

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, FilePlus2, Pencil } from 'lucide-react';
+import { ArrowLeft, FilePlus2, FileText, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Boton, BotonEnlace } from '@/components/Boton';
 import { Campo } from '@/components/Campos';
@@ -14,6 +14,7 @@ import { EditarContrato } from '@/components/gestion/EditarContrato';
 import { Tabla, type Columna } from '@/components/gestion/Tabla';
 import { crearCertificado, fmtCantidad, fmtPesos, obtenerContrato } from '@/lib/certificacion';
 import { limpiarError } from '@/lib/errores';
+import { abrirDocumento } from '@/lib/obras';
 import { useCarga } from '@/lib/useCarga';
 import { useSesion } from '@/lib/sesion';
 import type { Certificado, ItemContrato } from '@/lib/types';
@@ -99,7 +100,14 @@ export default function PaginaContrato() {
           {[k.obra_servicio, k.tipo === 'obra' ? 'Obra' : 'Abono mensual', k.ada_numero && `ADA ${k.ada_numero}`, k.oc_numero && `OC ${k.oc_numero}`].filter(Boolean).join(' · ')}
         </p>
         </div>
-        {esGerencia && !editando && <Boton icono={Pencil} onClick={() => setEditando(true)}>Editar contrato</Boton>}
+        <div className="flex flex-wrap gap-2">
+          {k.ada_pdf_url && (
+            <Boton icono={FileText} onClick={() => abrirDocumento(k.ada_pdf_url!).catch((e) => toast.error(limpiarError(e)))}>
+              Ver PDF del ADA
+            </Boton>
+          )}
+          {esGerencia && !editando && <Boton icono={Pencil} onClick={() => setEditando(true)}>Editar contrato</Boton>}
+        </div>
       </header>
 
       {editando && <EditarContrato contrato={k} items={items} onCambio={carga.recargar} onCerrar={() => setEditando(false)} />}

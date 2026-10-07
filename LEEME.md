@@ -64,7 +64,10 @@ un intento anterior, hay que vaciar el esquema `public` antes (eso borra datos: 
    npx supabase login
    npx supabase link --project-ref <ref-del-proyecto>
    npx supabase functions deploy invitar-usuario
+   npx supabase functions deploy informe-inspeccion
+   npx supabase functions deploy leer-contrato-pdf
    ```
+   Las dos últimas usan Gemini: cargar una vez el secreto `GEMINI_API_KEY` (Edge Functions → Secrets).
 7. `app/.env.local` (copiar de `.env.example`) con `NEXT_PUBLIC_SUPABASE_URL` y
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`. La `service_role` no va en este archivo.
 8. Primer administrador: crear el usuario en Authentication → Users y después, en el SQL Editor:

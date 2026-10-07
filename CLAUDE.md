@@ -462,6 +462,16 @@ el SQL se reescribió, hay que confirmar con él si se arranca en un proyecto nu
 esquema `public` del existente (borra datos: pedir OK). Preguntale en qué paso está antes de asumir.**
 
 ## 4. Lo que falta (fuera de las 5 fases, en orden de valor)
+**La lista completa y priorizada contra la v1 está en `INVENTARIO-v1-v2.md` (relevada el 7/10/2026).** Va primero.
+
+En curso (7/10/2026): **carga del ADA / orden de compra desde el PDF con IA** (punto 1 del inventario).
+Edge function `leer-contrato-pdf` (Gemini gratis, mismo `GEMINI_API_KEY` que el informe; lee el PDF ya subido al
+bucket `documentos` con la sesión del usuario, solo gerencia; no guarda nada) + `FormContrato` (arrastrar el PDF,
+control de la suma contra el total del documento con 0,5 % de tolerancia, renglones que parecen subtotal marcados,
+"pedir a la IA que corrija") + botón "Ver PDF del ADA" en el contrato (`contratos.ada_pdf_url`). Sin cambios de SQL.
+Verificado: `deno check`, 4 pruebas de `control.test.ts`, `tsc`. **Falta**: desplegar la función (OK de Emanuel) y
+probarla con un ADA real; ver el formulario en pantalla (Chrome no estaba conectado).
+
 - **Prueba de aceptación del aislamiento contra el Supabase real** (§7) — antes que nada.
 - **Alta en Auth de los perfiles migrados**: el script deja `migracion/perfiles_pendientes.json`;
   invitarlos (UI de Usuarios o en lote con la edge function).

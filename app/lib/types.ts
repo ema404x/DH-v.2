@@ -184,8 +184,11 @@ export interface Contrato {
   contratista: string;
   contratista_cuit: string | null;
   obra_servicio: string;
+  emprendimiento: string | null;
   ada_numero: string | null;
   oc_numero: string | null;
+  // El PDF del ADA en el bucket "documentos" (o el enlace de la v1, si vino migrado).
+  ada_pdf_url: string | null;
   fecha_inicio: string | null;
   fecha_fin: string | null;
   plazo: string | null;
