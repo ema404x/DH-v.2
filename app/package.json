@@ -12,6 +12,7 @@
     "@ducanh2912/next-pwa": "10.2.9",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.2",
+    "jspdf": "^2.5.2",
     "jsqr": "1.4.0",
     "leaflet": "^1.9.4",
     "lucide-react": "1.49.0",

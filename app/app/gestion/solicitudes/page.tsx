@@ -11,6 +11,8 @@ import { BuscadorRemoto } from '@/components/gestion/BuscadorRemoto';
 import { Documentos } from '@/components/gestion/Documentos';
 import { Indicador, Indicadores, Pestanas } from '@/components/gestion/Piezas';
 import { fmtPesos } from '@/lib/certificacion';
+import { aprobarCertificado, rechazarCertificado } from '@/lib/certificados';
+import { FirmaJefeSitioModal } from '@/components/certificados/FirmaJefeSitioModal';
 import {
   ESTADOS_SOLICITUD, PRIORIDADES_COBRO, borrarSolicitud, cambiarEstadoSolicitud, comentarSolicitud, fmtPct, guardarSolicitud, listarSolicitudes,
   type Documento, type EstadoSolicitud, type Solicitud,
@@ -38,6 +40,9 @@ function Ficha({ solicitud, onListo }: { solicitud: Solicitud | null; onListo: (
   });
   const [obra, setObra] = useState<ResultadoBusqueda | null>(s?.obra_id ? { id: s.obra_id, etiqueta: s.obra_titulo ?? '', detalle: null } : null);
   const [contrato, setContrato] = useState<ResultadoBusqueda | null>(s?.contrato_id ? { id: s.contrato_id, etiqueta: s.contrato_contratista ?? '', detalle: null } : null);
+  // Con un certificado emitido vinculado, aprobar o rechazar la solicitud resuelve también el certificado (como la v1).
+  const conCertificado = !!s?.certificado_id && s.certificado_estado === 'emitido';
+  const [firmaAbierta, setFirmaAbierta] = useState(false);
   const [adjuntos, setAdjuntos] = useState<Documento[]>(s?.adjuntos ?? []);
   const [comentario, setComentario] = useState(s?.comentarios ?? '');
   const [motivo, setMotivo] = useState('');
@@ -134,12 +139,14 @@ function Ficha({ solicitud, onListo }: { solicitud: Solicitud | null; onListo: (
               </div>
               <div className="flex flex-wrap gap-2">
                 {s.estado === 'enviada' && <Boton cargando={trabajando} onClick={() => hacer(() => cambiarEstadoSolicitud(s.id, 'en_revision'), 'La tomaste para revisar.')}>Tomar para revisar</Boton>}
-                <Boton variante="primario" icono={CheckCircle2} cargando={trabajando} onClick={() => hacer(() => cambiarEstadoSolicitud(s.id, 'aprobada', { comentarios: comentario.trim() || undefined }), 'Solicitud aprobada.')}>Aprobar</Boton>
+                <Boton variante="primario" icono={CheckCircle2} cargando={trabajando} onClick={() => conCertificado ? setFirmaAbierta(true) : hacer(() => cambiarEstadoSolicitud(s.id, 'aprobada', { comentarios: comentario.trim() || undefined }), 'Solicitud aprobada.')}>{conCertificado ? 'Aprobar con firma' : 'Aprobar'}</Boton>
+                <FirmaJefeSitioModal abierto={firmaAbierta} onCerrar={() => setFirmaAbierta(false)} titulo="Firma del gerente" cargo="Gerente de Contratos · Aprobación"
+                  onFirmado={(firma) => { setFirmaAbierta(false); hacer(async () => { if (comentario.trim()) await comentarSolicitud(s.id, comentario.trim()); await aprobarCertificado(s.certificado_id!, firma); }, 'Solicitud y certificado aprobados.'); }} />
               </div>
               <div className="flex items-end gap-2">
                 <div className="flex-1"><Campo etiqueta="Motivo del rechazo" value={motivo} onChange={(e) => setMotivo(e.target.value)} /></div>
                 <Boton variante="peligro" icono={XCircle} cargando={trabajando} disabled={!motivo.trim()}
-                  onClick={() => hacer(() => cambiarEstadoSolicitud(s.id, 'rechazada', { motivo_rechazo: motivo.trim() }), 'Solicitud rechazada.')}>Rechazar</Boton>
+                  onClick={() => hacer(() => conCertificado ? rechazarCertificado(s.certificado_id!, motivo.trim()) : cambiarEstadoSolicitud(s.id, 'rechazada', { motivo_rechazo: motivo.trim() }), conCertificado ? 'Solicitud rechazada: el certificado volvió a borrador.' : 'Solicitud rechazada.')}>Rechazar</Boton>
               </div>
             </>
           )}

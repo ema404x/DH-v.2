@@ -461,6 +461,23 @@ edición de contrato y abonos del mes. Funcionó todo; lo que apareció:
 el SQL se reescribió, hay que confirmar con él si se arranca en un proyecto nuevo o se vacía el
 esquema `public` del existente (borra datos: pedir OK). Preguntale en qué paso está antes de asumir.**
 
+## Certificados idénticos a la v1 (7/10/2026)
+Emanuel pidió que Certificados sea **idéntico al 100 % a Base44**. Decidió (pregunta explícita): **igual en pantalla y
+flujo, con las reglas de la v2 por debajo** (numera la base, emitido/aprobado no se tocan ni se borran, no se
+certifica de más, la firma del gerente es la de quien aprueba). Se replicó desde el código de la v1:
+`pages/Certificados.jsx`, `CertificadoEditor`, `CertificadoPreview`, `CertificadosLista`, `HistorialAcumulados`,
+`FirmaJefeSitioModal`, `UploadADA`, `AbonoManualForm`, `GeneracionMasiva`, `CertificadosAutomatizados`,
+`AbonoMaestroPanel/Card/Form/RubrosGrid`, `CertificacionMensualDialog` y `utils/exportCertificadoPDF.js`.
+- SQL `dh1-v2-fase14-certificados-v1.sql` (pruebas 458/458, sección 16). **Sin correr en el Supabase real: pide OK.**
+- App: `app/gestion/certificacion/page.tsx` (la página de la v1), `components/certificados/*`, `lib/certificados.ts`,
+  `lib/pdfCertificado.ts` (jsPDF, mismo formato; logo copiado a `public/certificados/mejores-logo.jpg` porque el de la
+  v1 está en los servidores de Base44). Las páginas viejas por contrato (`/gestion/certificacion/[contratoId]`) siguen.
+- Solicitudes: con un certificado emitido vinculado, aprobar pide la firma del gerente y aprueba los dos.
+- Diferencias a sabiendas (reglas v2): N° de certificado lo pone la base al emitir; "Monto contratado" es la suma de los
+  ítems; anticipo/fondo de reparo en % van sobre lo certificado del período (la v1 los tomaba del total del contrato
+  en cada certificado) o como monto fijo; "Regenerar" solo rehace borradores; los emitidos no se borran.
+- Errores de la v1 que no se copiaron: números repetidos, fechas UTC, `parseMonto` que multiplicaba por 100.
+
 ## 4. Lo que falta (fuera de las 5 fases, en orden de valor)
 **La lista completa y priorizada contra la v1 está en `INVENTARIO-v1-v2.md` (relevada el 7/10/2026).** Va primero.
 

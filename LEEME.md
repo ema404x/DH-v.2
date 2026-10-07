@@ -53,6 +53,10 @@ un intento anterior, hay que vaciar el esquema `public` antes (eso borra datos: 
    Y `dh1-v2-fase12-administracion.sql` (riesgos, foro, sugerencias, búsqueda global, resumen de sectores).
    Y `dh1-v2-fase13-ajustes.sql` (numeración de a uno en solicitudes, requerimientos e informes; cantidades con su
    unidad legible).
+   Y `dh1-v2-fase14-certificados-v1.sql` (certificados con la pantalla y el flujo de la v1: guardar_certificado,
+   firma del jefe al emitir obra, solicitud automática, abonos maestros, certificar mes, emisión automática).
+   La emisión automática del último día hábil no se programa sola: después, una vez,
+   `select public.programar_certificados_automaticos();`
    La fase 9 trae al principio una corrección de seguridad de la fase 4 (los ayudantes de la bandera de
    certificación ya no se pueden llamar sueltos, por ejemplo desde GraphQL).
    Siempre en ese orden y de a uno. Para no copiar y pegar archivos largos a mano:

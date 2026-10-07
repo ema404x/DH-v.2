@@ -103,7 +103,7 @@ async function llamarLector<T>(cuerpo: Record<string, unknown>): Promise<T> {
 
 // `path`: el PDF ya subido al bucket "documentos" (subirDocumento). La IA no guarda nada: devuelve los datos
 // para que una persona los revise en el formulario.
-export const leerContratoPDF = (path: string, tipo: 'auto' | 'abono_mensual' | 'obra') =>
+export const leerContratoPDF = (path: string, tipo: 'auto' | 'abono_mensual' | 'obra' | 'certificado_avance') =>
   llamarLector<{ datos: ContratoLeido; validacion: ControlSuma; aviso?: string }>({ accion: 'leer', path, tipo: tipo === 'auto' ? null : tipo });
 
 export const corregirItemsPDF = (path: string, totalDocumento: number, totalItems: number) =>

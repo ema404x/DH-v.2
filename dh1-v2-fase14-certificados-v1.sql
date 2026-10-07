@@ -386,6 +386,7 @@ begin
       plazo_entrega         = case when c ? 'plazo_entrega' then nullif(btrim(c ->> 'plazo_entrega'), '') else x.plazo_entrega end,
       condiciones_pago      = case when c ? 'condiciones_pago' then nullif(btrim(c ->> 'condiciones_pago'), '') else x.condiciones_pago end,
       base                  = case when c ? 'base' then nullif(btrim(c ->> 'base'), '') else x.base end,
+      comuna                = case when c ? 'comuna' then nullif(btrim(c ->> 'comuna'), '') else x.comuna end,
       monto_obra_contratada = case when c ? 'monto_obra_contratada' then nullif(c ->> 'monto_obra_contratada', '')::numeric else x.monto_obra_contratada end,
       ada_pdf_url           = case when c ? 'ada_pdf_url' and nullif(c ->> 'ada_pdf_url', '') is not null then c ->> 'ada_pdf_url' else x.ada_pdf_url end
      where x.id = v_contrato;
@@ -431,7 +432,8 @@ begin
     fondo_reparo_monto_manual = case when h ? 'fondo_reparo_monto_manual' then nullif(h ->> 'fondo_reparo_monto_manual', '')::numeric else x.fondo_reparo_monto_manual end,
     fondo_reparo_label        = case when h ? 'fondo_reparo_label' then nullif(btrim(h ->> 'fondo_reparo_label'), '') else x.fondo_reparo_label end,
     fondo_reparo_aplicar      = case when h ? 'fondo_reparo_aplicar' then coalesce((h ->> 'fondo_reparo_aplicar')::boolean, false) else x.fondo_reparo_aplicar end,
-    avance_obra_pct           = case when h ? 'avance_obra_pct' then nullif(h ->> 'avance_obra_pct', '')::numeric else x.avance_obra_pct end
+    avance_obra_pct           = case when h ? 'avance_obra_pct' then nullif(h ->> 'avance_obra_pct', '')::numeric else x.avance_obra_pct end,
+    notas                     = case when h ? 'notas' then nullif(btrim(h ->> 'notas'), '') else x.notas end
    where x.id = v_cert;
   perform public.totalizar_certificado(v_cert);
   return v_cert;
@@ -610,7 +612,7 @@ create view public.v_certificados with (security_invoker = true) as
 select c.*,
        k.tipo, k.contratista, k.contratista_cuit, k.obra_servicio, k.emprendimiento, k.ada_numero, k.oc_numero,
        k.fecha_inicio, k.fecha_fin, k.plazo, k.plazo_entrega, k.condiciones_pago, k.base, k.monto_obra_contratada,
-       k.monto_contratado, k.ada_pdf_url,
+       k.monto_contratado, k.ada_pdf_url, k.comuna, k.rubro,
        coalesce(c.fondo_reparo_label, k.fondo_reparo_label) as fondo_reparo_nombre,
        pe.nombre as emitido_nombre,
        pa.nombre as aprobado_nombre,
