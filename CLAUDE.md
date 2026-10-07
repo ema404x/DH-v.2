@@ -499,7 +499,8 @@ v1, reglas de la v2**. Fuente: el clon actual de la v1 (GitHub ema404x/DH1b44, 6
   elige de la lista de usuarios (no texto libre); "archivadas" = completadas hace más de 30 días (calculado); "vencida" en
   el tablero usa la regla de la v1 (en progreso con fecha pasada); sin firma en la orden (no hay columna); el PDF abre la
   hoja imprimible de la v2; el QR es el de la ubicación (o el enlace a la orden). Sin tiempo real: recarga cada 30 s.
-- Falta: Crear OT (asistente de 3 pasos de la v1), Mis Órdenes del operario y portales, PDF jsPDF de la orden.
+- Crear OT (`app/gestion/ots/nueva`) = CrearOT de la v1: Activo → Detalle → Materiales, Futura Obra (crea un pendiente tipo obra), dictado por voz, 5 Reglas de Oro, fotos de referencia (se suben al crear). Sin persona elegida queda a cargo el jefe de sitio de la ubicación del activo. A diferencia de la v1, la plantilla también copia el checklist.
+- Falta: Mis Órdenes del operario y portales, PDF jsPDF de la orden.
 
 ## 4. Lo que falta (fuera de las 5 fases, en orden de valor)
 **La lista completa y priorizada contra la v1 está en `INVENTARIO-v1-v2.md` (relevada el 7/10/2026).** Va primero.
