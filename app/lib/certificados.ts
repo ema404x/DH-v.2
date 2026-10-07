@@ -254,9 +254,9 @@ export async function ejecutarAutomaticos(forzar: boolean): Promise<ResultadoMes
 
 export const MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-// Pesos sin decimales, como la v1 ("$ 1.234").
+// Pesos con centavos, como los certificados que emite hoy la v1 ("$ 60.165,28").
 export const fmt = (n: number | string | null | undefined) =>
-  new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(Math.round(Number(n ?? 0)) || 0);
+  new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.round(Number(n ?? 0) * 100) / 100 || 0);
 
 export const fmtFecha = (d: string | null | undefined) => {
   if (!d) return '—';

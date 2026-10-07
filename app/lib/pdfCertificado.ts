@@ -53,13 +53,15 @@ export interface DatosPDF {
 
 const LOGO = '/certificados/mejores-logo.jpg';
 
-const r0 = (n: unknown) => Math.round(Number(n) || 0);
-const fmt = (n: unknown) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(r0(n));
-const fmtC = (v: unknown) => { const n = r0(v); return n === 0 ? '0' : n.toLocaleString('es-AR'); };
+// Con centavos, como el PDF que genera hoy la v1 ("$ 60.165,28", "24.710,74").
+const r0 = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
+const fmt = (n: unknown) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(r0(n));
+const fmtC = (v: unknown) => { const n = r0(v); return n === 0 ? '0' : n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+const fmtU = (v: unknown) => { const n = r0(v); return n ? (Number.isInteger(n) ? String(n) : n.toLocaleString('es-AR', { maximumFractionDigits: 2 })) : ''; };
 const fmtDate = (d: string | null) => { if (!d) return '—'; const [y, m, day] = d.slice(0, 10).split('-'); return y && m && day ? `${day}/${m}/${y}` : d; };
 
 // Hay medición si algún ítem certifica distinto de su total (igual que la v1).
-export const tieneMedicion = (items: ItemPDF[]) => items.some((it) => r0(it.med_presente_importe) !== r0(it.importe_total));
+export const tieneMedicion = (items: ItemPDF[]) => items.some((it) => r0(it.med_presente_importe) !== r0(it.importe_total) || r0(it.med_acum_anterior_importe) > 0);
 
 async function aBase64(url: string): Promise<string | null> {
   if (url.startsWith('data:')) return url;
@@ -81,8 +83,8 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
   const items = form.items;
   const hasMedicion = tieneMedicion(items);
-  const subtotalContrato = Math.round(items.reduce((a, it) => a + r0(it.importe_total), 0));
-  const totalPresente = hasMedicion ? Math.round(items.reduce((a, it) => a + r0(it.med_presente_importe), 0)) : 0;
+  const subtotalContrato = r0(items.reduce((a, it) => a + r0(it.importe_total), 0));
+  const totalPresente = hasMedicion ? r0(items.reduce((a, it) => a + r0(it.med_presente_importe), 0)) : 0;
   const totalSaldo = hasMedicion ? Math.max(0, subtotalContrato - totalPresente) : 0;
   const pdfSubtotal = hasMedicion ? totalPresente : subtotalContrato;
   const pdfAnticipo = r0(form.anticipo_monto);
@@ -132,13 +134,13 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
       { label: 'CANT.', align: 'right', w: 9 },
       { label: 'IMP.UNIT.', align: 'right', w: 23 },
       { label: 'IMP.TOT.', align: 'right', w: 23 },
-      { label: 'A.A.U', align: 'right', w: 7 },
+      { label: 'A.A.', align: 'right', w: 7 },
       { label: 'A.ANT$', align: 'right', w: 23 },
-      { label: 'PR.U', align: 'right', w: 7 },
+      { label: 'PR.', align: 'right', w: 7 },
       { label: 'PRES.$', align: 'right', w: 23 },
-      { label: 'A.P.U', align: 'right', w: 7 },
+      { label: 'A.P.', align: 'right', w: 7 },
       { label: 'A.PR.$', align: 'right', w: 23 },
-      { label: 'SA.U', align: 'right', w: 7 },
+      { label: 'SA.', align: 'right', w: 7 },
       { label: 'SALDO$', align: 'right', w: 23 },
     ];
     const fixedTotal = withoutDesc.reduce((s, d) => s + d.w, 0);
@@ -163,7 +165,6 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
 
   drawPageHeader();
   let y = 26;
-  let pageNum = 1;
 
   const leftInfo: [string, string | null][] = [
     ['EMPRENDIMIENTO', form.emprendimiento], ['OBRA / SERVICIO', form.obra_servicio], ['CONTRATISTA', form.contratista], ['BASE', form.base || '—'],
@@ -172,12 +173,14 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
     ['ADA N°', form.ada_numero], ['OC N°', form.oc_numero || '—'], ['MES / PERÍODO', form.mes_periodo], ['FECHA INICIO', fmtDate(form.fecha_inicio)],
     ['PLAZO', form.plazo_obra || '—'], ['FIN', fmtDate(form.fecha_finalizacion)], ['MONTO CONTRATADO', fmt(montoContratado)],
   ];
+  // Un texto largo no se encima con la columna de la derecha: se corta con "…".
+  const recortar = (s: string, ancho: number) => { if (doc.getTextWidth(s) <= ancho) return s; let x = s; while (x.length > 1 && doc.getTextWidth(x + '…') > ancho) x = x.slice(0, -1); return x + '…'; };
   const INFO_LINE = 5.5;
   doc.setFontSize(8); doc.setTextColor(40, 40, 40);
   leftInfo.forEach(([k, v], i) => {
     const ry = y + i * INFO_LINE;
     doc.setFont('helvetica', 'bold'); doc.setTextColor(80, 80, 80); doc.text(k + ':', M, ry);
-    doc.setFont('helvetica', 'normal'); doc.setTextColor(20, 20, 20); doc.text(String(v || '—'), M + 40, ry);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(20, 20, 20); doc.text(recortar(String(v || '—'), W / 2 - M - 45), M + 40, ry);
   });
   rightInfo.forEach(([k, v], i) => {
     const ry = y + i * INFO_LINE;
@@ -197,8 +200,7 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
     const descLines = doc.splitTextToSize(item.descripcion || '', TABLE_COLS[1].w - 2.4) as string[];
     const ROW_H = Math.max(7, descLines.length * 4.2 + 2);
     if (y + ROW_H > SAFE_BOTTOM) {
-      drawFooter(pageNum, '??');
-      doc.addPage(); pageNum++;
+      doc.addPage();
       drawPageHeader(); y = 26; y = drawTableHeader(y);
     }
     const par = idx % 2 === 0;
@@ -222,7 +224,7 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
       if (col.align === 'right') doc.text(fitted, col.x + col.w - PAD, ty, { align: 'right' });
       else doc.text(fitted, col.x + PAD, ty, { align: 'left' });
     };
-    const u = (n: unknown) => { const v = r0(n); return v || ''; };
+    const u = fmtU;
     doc.setFontSize(6); doc.setFont('helvetica', 'normal');
     doc.text(String(item.numero || idx + 1), TABLE_COLS[0].x + TABLE_COLS[0].w - PAD, ty, { align: 'right' });
     doc.text(descLines, TABLE_COLS[1].x + PAD, y + 4.2);
@@ -244,8 +246,7 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
   // Totales
   const TOTALS_H = hasMedicion ? 52 : 38;
   if (y + TOTALS_H > SAFE_BOTTOM) {
-    drawFooter(pageNum, '??');
-    doc.addPage(); pageNum++;
+    doc.addPage();
     drawPageHeader(); y = 26;
   }
   y += 5;
@@ -296,8 +297,7 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
     const totalW = count * BLOCK_W + (count - 1) * GAP;
     const startX = (W - totalW) / 2;
     if (y + BLOCK_H + 18 > SAFE_BOTTOM) {
-      drawFooter(pageNum, '??');
-      doc.addPage(); pageNum++;
+      doc.addPage();
       drawPageHeader(); y = 26;
     }
     y += 10;
@@ -334,12 +334,12 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
     let i = 0;
     if (hasFirmaJefe) {
       const f = fecha(form.fecha_firma_jefe);
-      await bloque(firmaJefeBase64!, form.firmado_por_jefe || 'Jefe de Sitio', 'Jefe de Sitio', f ? `Firmado: ${f}` : null, '✓ Conforme', startX + i * (BLOCK_W + GAP));
+      await bloque(firmaJefeBase64!, form.firmado_por_jefe || 'Jefe de Sitio', 'Jefe de Sitio', f ? `Firmado: ${f}` : null, 'Conforme', startX + i * (BLOCK_W + GAP));
       i++;
     }
     if (hasFirmaGerente) {
       const f = fecha(form.fecha_aprobacion);
-      await bloque(firmaBase64!, form.aprobado_por || 'Gerencia', 'Gerente de Contratos', 'Mejores Hospitales S.A.', f ? `✓ Aprobado: ${f}` : '✓ Aprobado', startX + i * (BLOCK_W + GAP));
+      await bloque(firmaBase64!, form.aprobado_por || 'Gerencia', 'Gerente de Contratos', 'Mejores Hospitales S.A.', f ? `Aprobado: ${f}` : 'Aprobado', startX + i * (BLOCK_W + GAP));
     }
   }
 

@@ -468,7 +468,8 @@ certifica de más, la firma del gerente es la de quien aprueba). Se replicó des
 `pages/Certificados.jsx`, `CertificadoEditor`, `CertificadoPreview`, `CertificadosLista`, `HistorialAcumulados`,
 `FirmaJefeSitioModal`, `UploadADA`, `AbonoManualForm`, `GeneracionMasiva`, `CertificadosAutomatizados`,
 `AbonoMaestroPanel/Card/Form/RubrosGrid`, `CertificacionMensualDialog` y `utils/exportCertificadoPDF.js`.
-- SQL `dh1-v2-fase14-certificados-v1.sql` (pruebas 458/458, sección 16). **Sin correr en el Supabase real: pide OK.**
+- SQL `dh1-v2-fase14-certificados-v1.sql` (pruebas 458/458, sección 16). **Corrida en el Supabase real el 7/10/2026** con
+  el OK de Emanuel (hash verificado, consulta de control OK). Emisión automática SIN programar (decisión: después de probar).
 - App: `app/gestion/certificacion/page.tsx` (la página de la v1), `components/certificados/*`, `lib/certificados.ts`,
   `lib/pdfCertificado.ts` (jsPDF, mismo formato; logo copiado a `public/certificados/mejores-logo.jpg` porque el de la
   v1 está en los servidores de Base44). Las páginas viejas por contrato (`/gestion/certificacion/[contratoId]`) siguen.
