@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Figtree, Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
 import { Proveedores } from './proveedores';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
+// Tipografía del dashboard (estilo Apple).
+const figtree = Figtree({ subsets: ['latin'], variable: '--font-figtree', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'DH1 — Mantenimiento',
@@ -23,7 +25,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="es-AR" className={inter.variable}>
+    <html lang="es-AR" className={`${inter.variable} ${figtree.variable}`}>
       <body>
         <Proveedores>{children}</Proveedores>
       </body>

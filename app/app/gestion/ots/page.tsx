@@ -47,9 +47,11 @@ function WorkOrders() {
   const [isOnline, setIsOnline] = useState(true);
 
   const [search, setSearch] = useState('');
-  const [statusTab, setStatusTab] = useState('all');
-  const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Desde el tablero de inicio: ?estado=<estado> abre la grilla filtrada; ?ot=<id> abre la orden.
+  const estadoInicial = ['pendiente', 'asignada', 'en_progreso', 'pendiente_validacion', 'obra', 'completada', 'cancelada'].includes(params.get('estado') ?? '') ? params.get('estado')! : null;
+  const [statusTab, setStatusTab] = useState(estadoInicial ?? 'all');
+  const [viewMode, setViewMode] = useState<'kanban' | 'grid'>(estadoInicial ? 'grid' : 'kanban');
+  const [selectedId, setSelectedId] = useState<string | null>(params.get('ot'));
   const [qrOrder, setQrOrder] = useState<FilaTablero | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [historialOpen, setHistorialOpen] = useState(false);

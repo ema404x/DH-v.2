@@ -514,6 +514,21 @@ v1, reglas de la v2**. Fuente: el clon actual de la v1 (GitHub ema404x/DH1b44, 6
 - PDF de la orden: `lib/pdfOT.ts` = exportWorkOrderPDF de la v1 (botón del panel). Logo de la v1 desde Base44; si no carga, el de `public/certificados`. "En validación" tiene su color (en la v1 caía en PENDIENTE).
 - Portales sin login: propuesta en `PROPUESTA-portales-sin-login.md` (opciones A/B/C, recomendada A). Falta la decisión de Emanuel.
 
+## Tablero de inicio estilo Apple (8/10/2026)
+Emanuel pidió un tablero "premium"; de dos rondas de bocetos aprobó el estilo Apple/iOS (claro y oscuro, distinto por rol).
+Es la única pantalla que NO copia la v1, a pedido suyo. `app/gestion/page.tsx` elige la vista por rol;
+`components/dashboard/{piezas,Gerencia,Jefe}.tsx` (vidrio, anillos, colores de sistema de iOS, fuente Figtree);
+datos y cálculos en `lib/dashboard.ts` (sin SQL nuevo).
+- Gerencia: plata certificada del período (Hoy/Mes/Año, contra el período anterior; aprobado, por aprobar y a cobrar en
+  el ciclo abierto; curva acumulada), anillos de órdenes (completadas, a tiempo, validadas en 48 h), equipo fichado hoy,
+  obras en marcha, "Requiere tu firma" (bandeja), preventivo con "Generar órdenes preventivas", alertas críticas.
+- Jefe de sitio: sus órdenes, "Para validar" con foto y Aprobar/Devolver (devolver pide motivo), su cuadrilla con quién
+  fichó, sus obras, a cobrar de sus obras y certificados que esperan su firma. Escanear QR y Nueva orden.
+- Tema claro/oscuro guardado en el navegador (`dh1-tema-dashboard`, oscuro por defecto).
+- `/gestion/ots` ahora lee `?estado=` (abre la grilla filtrada) y `?ot=` (abre la orden).
+- No hay "cobrado" en la v2 (DH1 no cobra): la plata es lo certificado. Verificado en vivo solo con la base vacía
+  (gerencia, los dos temas, los tres períodos); la curva con datos y la vista del jefe falta verla con datos reales.
+
 ## 4. Lo que falta (fuera de las 5 fases, en orden de valor)
 **La lista completa y priorizada contra la v1 está en `INVENTARIO-v1-v2.md` (relevada el 7/10/2026).** Va primero.
 
