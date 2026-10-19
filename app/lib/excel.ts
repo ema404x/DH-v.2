@@ -80,11 +80,62 @@ export interface LecturaDirectorio {
   formato: string;
 }
 
+// "LISTADO ESCUELAS POR COMUNA": una hoja por comuna ("COMUNA 8A1" → zona 8A) con encabezados N°, Ubic. Técnica,
+// Dirección, Establecimiento, M2, Inspector. Cada edificio es una fila con dirección (Establecimiento repite la
+// dirección); debajo, sin dirección, las escuelas que funcionan ahí, con su propia ubicación técnica. Cada escuela
+// hereda la dirección y el inspector del edificio; los m² del edificio van a la primera escuela (para no sumarlos
+// dos veces). Un edificio sin escuelas debajo entra como un lugar con el nombre de la dirección.
+// Las hojas sin encabezados (copias viejas de las mismas comunas) se ignoran.
+function leerPorComuna(hojas: Hoja[]): LecturaDirectorio | null {
+  const validas = hojas.filter((h) => {
+    const cab = h.filas[0] ?? [];
+    return /COMUNA/.test(clave(h.nombre)) && columna(cab, ['UBIC'], true) >= 0 && columna(cab, ['ESTABLECIMIENTO'], true) >= 0
+      && columna(cab, ['DIRECCION'], true) >= 0 && columna(cab, ['JEFE', 'COMUNA', 'ZONA'], true) < 0;
+  });
+  if (validas.length === 0) return null;
+
+  const filas: FilaDirectorio[] = [];
+  for (const h of validas) {
+    const cab = h.filas[0];
+    const iCod = columna(cab, ['UBIC'], true);
+    const iDir = columna(cab, ['DIRECCION'], true);
+    const iEst = columna(cab, ['ESTABLECIMIENTO'], true);
+    const iM2 = columna(cab, ['M2'], false);
+    const iInsp = columna(cab, ['INSPECTOR'], true);
+    const zona = zonaDe(h.nombre);
+    let edificio: FilaDirectorio | null = null;
+    let escuelas = 0;
+    const cerrar = () => { if (edificio && escuelas === 0) filas.push(edificio); };
+
+    for (const f of h.filas.slice(1)) {
+      const codigo = txt(f[iCod]);
+      const direccion = txt(f[iDir]);
+      const nombre = txt(f[iEst]);
+      if (!codigo && !nombre && !direccion) continue;
+      if (direccion) {
+        cerrar();
+        edificio = { direccion, zona, establecimiento: nombre || direccion, codigo, m2: iM2 >= 0 ? num(f[iM2]) : null, jefe: '', inspector: iInsp >= 0 ? txt(f[iInsp]) : '' };
+        escuelas = 0;
+      } else if (edificio && nombre) {
+        filas.push({ direccion: edificio.direccion, zona, establecimiento: nombre, codigo, m2: escuelas === 0 ? edificio.m2 : null, jefe: '', inspector: edificio.inspector });
+        escuelas++;
+      }
+    }
+    cerrar();
+  }
+  if (filas.length === 0) return null;
+  const zonas = [...new Set(filas.map((f) => f.zona))].join(', ');
+  return { filas, formato: `Escuelas por comuna (${validas.length} ${validas.length === 1 ? 'hoja' : 'hojas'}: ${zonas})` };
+}
+
 // Acepta las dos planillas de la v1:
 //   · "Direcciones y jefes": hoja con "escuela" en el nombre; columnas A = jefe, B = comuna, C = dirección, D = escuela.
 //   · Planilla con encabezados: Establecimiento, Dirección, Jefe de Sitio, Comuna, Ubicación Técnica, M2 (e Inspector).
 export async function leerDirectorio(archivo: File): Promise<LecturaDirectorio> {
   const hojas = await leerHojas(archivo);
+
+  const porComuna = leerPorComuna(hojas);
+  if (porComuna) return porComuna;
 
   for (const h of hojas) {
     const cab = h.filas[0] ?? [];

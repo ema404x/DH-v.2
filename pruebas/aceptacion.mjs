@@ -26,7 +26,7 @@ await db.exec(`
   grant execute on function auth.uid() to anon, authenticated, service_role;
 `);
 
-for (const f of ['dh1-v2-fundacion.sql', 'dh1-v2-fase3-gestion.sql', 'dh1-v2-fase4-certificacion.sql', 'dh1-v2-fase5-migracion.sql', 'dh1-v2-fase6-operacion.sql', 'dh1-v2-fase7-informe-ia.sql', 'dh1-v2-fase8-gente.sql', 'dh1-v2-fase9-obras.sql', 'dh1-v2-fase10-panol.sql', 'dh1-v2-fase11-control.sql', 'dh1-v2-fase12-administracion.sql', 'dh1-v2-fase13-ajustes.sql', 'dh1-v2-fase14-certificados-v1.sql', 'dh1-v2-fase15-ot-obra-firma.sql', 'dh1-v2-fase16-portal-operarios.sql']) {
+for (const f of ['dh1-v2-fundacion.sql', 'dh1-v2-fase3-gestion.sql', 'dh1-v2-fase4-certificacion.sql', 'dh1-v2-fase5-migracion.sql', 'dh1-v2-fase6-operacion.sql', 'dh1-v2-fase7-informe-ia.sql', 'dh1-v2-fase8-gente.sql', 'dh1-v2-fase9-obras.sql', 'dh1-v2-fase10-panol.sql', 'dh1-v2-fase11-control.sql', 'dh1-v2-fase12-administracion.sql', 'dh1-v2-fase13-ajustes.sql', 'dh1-v2-fase14-certificados-v1.sql', 'dh1-v2-fase15-ot-obra-firma.sql', 'dh1-v2-fase16-portal-operarios.sql', 'dh1-v2-fase17-directorio-por-codigo.sql']) {
   try {
     await db.exec(readFileSync(join(raiz, f), 'utf8'));
     console.log(`cargado  ${f}`);
@@ -1569,6 +1569,41 @@ await servicio();
 await db.query(`update portal_pases set expira = now() - interval '1 minute'`);
 await comoServicio();
 await rechaza('un pase vencido no sirve', `select portal_ordenes($1)`, /venció/, [P4]);
+await servicio();
+
+// ---------------------------------------------------------------- 19. fase 17: directorio por ubicación técnica
+titulo('19. Importar el directorio empareja por ubicación técnica (fase 17)');
+await como(U.gerE);
+const x19fila = (est, cod, dir, zona = '8A') => ({ establecimiento: est, codigo: cod, direccion: dir, zona, jefe: '', inspector: '', m2: null });
+const x19imp = async (filas) => (await uno(`select importar_directorio($1::jsonb) r`, [JSON.stringify(filas)])).r;
+const x19lugares = async (nombre) => await q(`select u.codigo, d.direccion from ubicaciones u left join direcciones d on d.id = u.direccion_id
+  where u.nombre = $1 order by u.codigo nulls last`, [nombre]);
+
+// Dos escuelas con el mismo nombre en edificios distintos (como CENS N° 77): dos lugares, cada uno con su dirección.
+const x19a = await x19imp([x19fila('X19 CENS 77', 'X19-0794-0001', 'X19 CARLOS BERG 3460'), x19fila('X19 CENS 77', 'X19-0802-2358', 'X19 CORRALES 3420')]);
+const x19l = await x19lugares('X19 CENS 77');
+ok('dos homónimos con códigos distintos quedan como dos lugares', x19a.ubicaciones_nuevas === 2 && x19l.length === 2, JSON.stringify(x19a));
+ok('cada uno con su dirección', x19l[0].direccion === 'X19 CARLOS BERG 3460' && x19l[1].direccion === 'X19 CORRALES 3420', JSON.stringify(x19l));
+const x19b = await x19imp([x19fila('X19 CENS 77', 'X19-0794-0001', 'X19 CARLOS BERG 3460'), x19fila('X19 CENS 77', 'X19-0802-2358', 'X19 CORRALES 3420')]);
+ok('reimportar no crea ni cambia nada', x19b.ubicaciones_nuevas === 0 && x19b.ubicaciones_actualizadas === 0, JSON.stringify(x19b));
+
+// Lo que dejó la importación vieja (solo por nombre): un solo lugar con el código y la dirección de la última fila.
+await x19imp([x19fila('X19 PI NOCHECITAS', 'X19-0805-2459', 'X19 MARTINEZ CASTRO 3061')]);
+const x19c = await x19imp([x19fila('X19 PI NOCHECITAS', 'X19-1453-0002', 'X19 FERNANDEZ DE LA CRUZ 3605'), x19fila('X19 PI NOCHECITAS', 'X19-0805-2459', 'X19 MARTINEZ CASTRO 3061')]);
+const x19n = await x19lugares('X19 PI NOCHECITAS');
+ok('reimportar sobre lo ya mezclado crea el lugar que faltaba y no toca el otro',
+  x19c.ubicaciones_nuevas === 1 && x19n.length === 2 && x19n.some((l) => l.codigo === 'X19-1453-0002' && l.direccion === 'X19 FERNANDEZ DE LA CRUZ 3605')
+  && x19n.some((l) => l.codigo === 'X19-0805-2459' && l.direccion === 'X19 MARTINEZ CASTRO 3061'), JSON.stringify(x19n));
+
+// Fila sin código: por nombre, como antes (la fila repetida de la planilla no duplica).
+const x19d = await x19imp([x19fila('X19 EEM 01', 'X19-1422-1062', 'X19 ZUVIRIA 6550', '8B'), x19fila('X19 EEM 01', '', 'X19 ZUVIRIA 6550', '8B')]);
+ok('una fila sin código se junta con el lugar del mismo nombre', x19d.ubicaciones_nuevas === 1 && (await x19lugares('X19 EEM 01')).length === 1, JSON.stringify(x19d));
+
+// Un lugar cargado a mano (sin código) toma el código de la planilla en vez de duplicarse.
+await db.query(`insert into ubicaciones (nombre) values ('X19 Escuela a mano')`);
+const x19e = await x19imp([x19fila('X19 Escuela a mano', 'X19-0999-0001', 'X19 CALLE 1')]);
+const x19m = await x19lugares('X19 Escuela a mano');
+ok('un lugar cargado a mano toma el código y la dirección', x19e.ubicaciones_nuevas === 0 && x19m.length === 1 && x19m[0].codigo === 'X19-0999-0001' && x19m[0].direccion === 'X19 CALLE 1', JSON.stringify(x19m));
 await servicio();
 
 // ---------------------------------------------------------------- resultado
