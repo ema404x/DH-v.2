@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { Layers, Plus, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Boton } from '@/components/Boton';
-import { PortalOperarios } from '@/components/gestion/PortalOperarios';
+import Link from 'next/link';
 import { Area, Campo, Casilla } from '@/components/Campos';
 import { ErrorVista, Esqueleto, Vacio } from '@/components/Estados';
 import { guardarSector, listarSectores, resumenSector, type SectorCompleto } from '@/lib/admin';
@@ -112,7 +112,10 @@ export default function Sectores() {
           </dl>
         </section>
       )}
-      <PortalOperarios sectorId={sectorEfectivo?.id} />
+      <Link href="/gestion/portal-operarios" className="tarjeta flex items-center justify-between gap-3 hover:border-primario/60">
+        <span><span className="font-semibold">Portal de operarios sin usuario</span><span className="block text-sm text-suave">La clave para entrar desde el QR sin usuario, prender o apagar el portal.</span></span>
+        <span className="text-primario">Configurar →</span>
+      </Link>
       {carga.cargando && !carga.datos ? <Esqueleto filas={3} /> : carga.error ? <ErrorVista mensaje={carga.error} onReintentar={carga.recargar} /> : (
         <ul className="space-y-2">
           {(carga.datos ?? []).map((s) => (

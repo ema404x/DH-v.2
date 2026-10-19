@@ -1,29 +1,31 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
-import { KeyRound, Save } from 'lucide-react';
+import { useState } from 'react';
+import Link from 'next/link';
+import { CheckCircle2, Copy, KeyRound, Power, RefreshCw, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Boton } from '@/components/Boton';
-import { Campo, Casilla, Selector } from '@/components/Campos';
+import { Selector } from '@/components/Campos';
 import { supabase } from '@/lib/supabase/client';
 import { exigir, limpiarError } from '@/lib/errores';
 import { useCarga } from '@/lib/useCarga';
 
 // Portal de operarios sin usuario (fase 16), del sector activo. Solo el admin.
-// El "usuario del portal" es un operario que nadie usa para entrar: las acciones del portal quedan a su nombre
-// (más el nombre que tipea cada operario). La clave no se puede leer: solo cambiar.
+// Pensado para hacerlo en un toque: "Generar clave" arma una clave de 8 números, la guarda y la muestra una sola vez.
+// El "usuario del portal" es un operario con el que nadie entra (las acciones quedan a su nombre + el nombre tipeado).
 
 interface Config { perfil_id: string; perfil_nombre: string; activo: boolean; updated_at: string }
-interface Accion { id: number; accion: string; nombre: string; ip: string; at: string; ot_id: string | null }
+interface Accion { id: number; accion: string; nombre: string; ip: string; at: string }
 
 const ACCION: Record<string, string> = { entrar: 'Entró', iniciar: 'Inició una orden', foto: 'Subió una foto', finalizar: 'Envió una orden al jefe' };
+const fecha = (f: string) => new Date(f).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
 
 async function cargar() {
   const sb = supabase();
   const [cfg, ops, log] = await Promise.all([
     sb.rpc('ver_portal_operarios'),
     sb.from('perfiles').select('id,nombre').eq('rol', 'operario').eq('activo', true).order('nombre'),
-    sb.from('portal_acciones').select('id,accion,nombre,ip,at,ot_id').order('at', { ascending: false }).limit(15),
+    sb.from('portal_acciones').select('id,accion,nombre,ip,at').order('at', { ascending: false }).limit(15),
   ]);
   return {
     config: exigir(cfg) as Config | null,
@@ -32,57 +34,96 @@ async function cargar() {
   };
 }
 
+// 8 números al azar (con el generador seguro del navegador).
+function claveNueva(): string {
+  const n = new Uint32Array(8);
+  crypto.getRandomValues(n);
+  return Array.from(n, (x) => String(x % 10)).join('');
+}
+
 export function PortalOperarios({ sectorId }: { sectorId?: string }) {
   const datos = useCarga(cargar, [sectorId]);
-  const [perfil, setPerfil] = useState('');
-  const [clave, setClave] = useState('');
-  const [activo, setActivo] = useState(true);
-  const [guardando, setGuardando] = useState(false);
-  const c = datos.datos?.config;
+  const [elegido, setElegido] = useState('');
+  const [mostrar, setMostrar] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState(false);
 
-  useEffect(() => {
-    setPerfil(c?.perfil_id ?? '');
-    setActivo(c?.activo ?? true);
-    setClave('');
-  }, [c?.perfil_id, c?.activo, c?.updated_at]);
+  if (datos.error) return <section className="tarjeta text-peligro">{datos.error}</section>;
+  if (!datos.datos) return <section className="tarjeta esqueleto h-40" />;
+  const { config: c, operarios, log } = datos.datos;
+  // El usuario del portal: el configurado, el elegido, o uno que se llame "Portal…".
+  const perfil = elegido || c?.perfil_id || operarios.find((o) => /portal/i.test(o.nombre))?.id || '';
 
-  async function guardar(e: FormEvent) {
-    e.preventDefault();
-    setGuardando(true);
+  async function guardar(clave: string | null, activo: boolean) {
+    setOcupado(true);
     try {
-      exigir(await supabase().rpc('set_portal_operarios', { p_perfil: perfil, p_clave: clave.trim() || null, p_activo: activo }));
-      toast.success(clave.trim() ? 'Clave del portal cambiada. Los que estaban adentro tienen que entrar de nuevo.' : 'Portal guardado.');
+      exigir(await supabase().rpc('set_portal_operarios', { p_perfil: perfil, p_clave: clave, p_activo: activo }));
+      if (clave) setMostrar(clave);
+      else toast.success(activo ? 'Portal prendido.' : 'Portal apagado. Los que estaban adentro quedaron afuera.');
       await datos.recargar();
     } catch (err) {
       toast.error(limpiarError(err));
     } finally {
-      setGuardando(false);
+      setOcupado(false);
     }
   }
-
-  if (!datos.datos) return null;
-  const { operarios, log } = datos.datos;
 
   return (
     <section className="tarjeta space-y-4">
       <div>
         <h2 className="flex items-center gap-2"><KeyRound className="h-5 w-5" aria-hidden /> Portal de operarios sin usuario</h2>
         <p className="text-sm text-suave">
-          Desde el QR de un lugar, quien no tiene usuario entra con esta clave y su nombre: ve las órdenes de ese lugar, las inicia,
-          sube fotos y las envía al jefe. No aprueba ni ve nada más. {c ? (c.activo ? 'Está prendido.' : 'Está apagado.') : 'Todavía no está configurado.'}
+          Quien no tiene usuario escanea el QR de un lugar, toca «No tengo usuario» y entra con esta clave y su nombre: ve las órdenes de ese lugar,
+          las inicia, sube fotos y las manda al jefe. No aprueba ni ve nada más.
         </p>
       </div>
-      <form onSubmit={guardar} className="grid gap-3 md:grid-cols-2">
-        <Selector etiqueta="Usuario del portal (un operario que nadie usa para entrar)" value={perfil} onChange={(e) => setPerfil(e.target.value)} required
-          opciones={{ '': 'Elegí…', ...Object.fromEntries(operarios.map((o) => [o.id, o.nombre])) }}
-          ayuda="Crealo en Usuarios con rol operario, por ejemplo «Portal QR»." />
-        <Campo etiqueta={c ? 'Clave nueva (vacía = no se cambia)' : 'Clave'} type="text" autoComplete="off" value={clave} onChange={(e) => setClave(e.target.value)}
-          minLength={6} required={!c} ayuda="Mínimo 6 caracteres. Cambiarla saca a todos los que estaban adentro." />
-        <Casilla etiqueta="Portal prendido" checked={activo} onChange={(e) => setActivo(e.target.checked)} />
-        <div className="md:text-right">
-          <Boton type="submit" variante="primario" icono={Save} cargando={guardando} disabled={!perfil}>Guardar</Boton>
+
+      {/* Estado */}
+      <div className={`flex flex-wrap items-center gap-3 rounded border px-4 py-3 ${c?.activo ? 'border-exito/40 bg-exito/10' : 'border-borde'}`}>
+        {c?.activo ? <CheckCircle2 className="h-6 w-6 text-exito" aria-hidden /> : <Power className="h-6 w-6 text-suave" aria-hidden />}
+        <div className="flex-1">
+          <p className="font-semibold">{!c ? 'Todavía no está configurado' : c.activo ? 'Prendido' : 'Apagado'}</p>
+          {c && <p className="text-sm text-suave">Usuario: {c.perfil_nombre} · clave cambiada el {fecha(c.updated_at)}</p>}
         </div>
-      </form>
+        {c && (
+          <Boton variante={c.activo ? 'secundario' : 'primario'} icono={Power} cargando={ocupado} onClick={() => guardar(null, !c.activo)}>
+            {c.activo ? 'Apagar' : 'Prender'}
+          </Boton>
+        )}
+      </div>
+
+      {/* La clave recién generada: se muestra una sola vez */}
+      {mostrar && (
+        <div className="rounded border-2 border-primario/60 bg-primario/10 px-4 py-4 text-center" role="status">
+          <p className="text-sm text-suave">Clave nueva del portal. Anotala o copiala: no se vuelve a mostrar.</p>
+          <p className="num my-2 text-4xl font-bold tracking-[0.3em]">{mostrar}</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Boton icono={Copy} onClick={() => navigator.clipboard?.writeText(mostrar).then(() => toast.success('Clave copiada.'))}>Copiar</Boton>
+            <Boton variante="fantasma" onClick={() => setMostrar(null)}>Listo, ya la anoté</Boton>
+          </div>
+        </div>
+      )}
+
+      {/* Acción principal */}
+      {operarios.length === 0 ? (
+        <div className="space-y-2">
+          <p className="text-sm">Primero hace falta un usuario operario para el portal (nadie entra con él). Creá uno llamado <b>Portal QR</b>.</p>
+          <Link href="/gestion/usuarios" className="inline-flex min-h-control items-center gap-2 rounded bg-primario px-4 font-semibold text-white">
+            <UserPlus className="h-4 w-4" aria-hidden /> Ir a Usuarios
+          </Link>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[220px] flex-1">
+            <Selector etiqueta="Usuario del portal" value={perfil} onChange={(e) => setElegido(e.target.value)}
+              opciones={{ '': 'Elegí…', ...Object.fromEntries(operarios.map((o) => [o.id, o.nombre])) }} />
+          </div>
+          <Boton variante="primario" icono={c ? RefreshCw : KeyRound} cargando={ocupado} disabled={!perfil} onClick={() => guardar(claveNueva(), true)}>
+            {c ? 'Generar clave nueva' : 'Generar clave y prender'}
+          </Boton>
+        </div>
+      )}
+      {c && <p className="text-xs text-suave">Generar una clave nueva saca a todos los que estaban adentro: van a tener que poner la nueva.</p>}
+
       {log.length > 0 && (
         <div>
           <h3 className="mb-2 text-sm font-semibold">Últimos movimientos del portal</h3>
@@ -90,7 +131,7 @@ export function PortalOperarios({ sectorId }: { sectorId?: string }) {
             {log.map((a) => (
               <li key={a.id} className="flex flex-wrap justify-between gap-2 py-1.5">
                 <span><span className="font-medium">{a.nombre}</span> · {ACCION[a.accion] ?? a.accion}</span>
-                <span className="text-suave">{new Date(a.at).toLocaleString('es-AR', { hour12: false })} · IP {a.ip}</span>
+                <span className="text-suave">{fecha(a.at)} · IP {a.ip}</span>
               </li>
             ))}
           </ul>

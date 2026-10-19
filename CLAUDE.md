@@ -539,7 +539,10 @@ Decisión de Emanuel (opción C): reabre "todo con login" (§2 bis) SOLO para es
   checklist se marca en el portal (la v2 lo exige); el portal necesita señal (la v1 tenía cola sin señal: pendiente).
 - Edge function **desplegada el 19/10/2026** desde el editor del panel (código con hash verificado, Verify JWT apagado y
   guardado; responde el mensaje de la base a un pase inventado).
-- Falta: crear el usuario Portal QR (lo crea Emanuel) y configurar la clave; probar de punta a punta.
+- Configurado el 19/10/2026 en escuela (usuario "Portal QR" y clave, los puso Emanuel). La configuración pasó a su propia
+  página `/gestion/portal-operarios` (menú Administración, solo admin) con "Generar clave" (8 números al azar, se
+  muestra una sola vez), prender/apagar y registro; en Sectores queda un enlace.
+- Falta: probar de punta a punta con un lugar real (el sector no tiene lugares ni órdenes todavía).
 
 ## Tablero de inicio estilo Apple (8/10/2026)
 Emanuel pidió un tablero "premium"; de dos rondas de bocetos aprobó el estilo Apple/iOS (claro y oscuro, distinto por rol).

@@ -7,8 +7,7 @@ import {
   AlertTriangle, Award, BarChart2, Bell, BookOpen, Building2, Calculator, CalendarDays, ChevronDown, ChevronLeft, ChevronRight,
   ClipboardCheck, ClipboardCopy, ClipboardList, FileCheck2, FileText, FolderKanban, HardHat, Info, LayoutDashboard, LifeBuoy, Lock,
   MapPin, MessageSquare, Package, RefreshCw, ShieldAlert, ShoppingCart, Truck, UserCog, Wallet, Wrench, X, Inbox,
-  type LucideIcon,
-} from 'lucide-react';
+  KeyRound, type LucideIcon, } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { obtenerBandeja } from '@/lib/control';
 import { useSesion } from '@/lib/sesion';
@@ -86,6 +85,7 @@ export const navGroups: { label: string; items: Item[] }[] = [
       { label: 'Control de Acceso', icon: Lock, path: '/gestion/usuarios', soloGerencia: true },
       { label: 'Auditoría', icon: FileText, path: '/gestion/auditoria', soloGerencia: true },
       { label: 'Sectores', icon: Building2, path: '/gestion/sectores', soloAdmin: true },
+      { label: 'Portal de Operarios', icon: KeyRound, path: '/gestion/portal-operarios', soloAdmin: true },
     ],
   },
   {
