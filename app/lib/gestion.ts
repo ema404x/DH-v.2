@@ -132,7 +132,7 @@ export async function obtenerPlantilla(id: string): Promise<Plantilla> {
 
 export async function listarUbicaciones(q: string, pagina: number): Promise<Pagina<Ubicacion>> {
   const [desde, hasta] = rango(pagina);
-  let consulta = supabase().from('ubicaciones').select('*', { count: 'exact' }).order('nombre').range(desde, hasta);
+  let consulta = supabase().from('ubicaciones').select('*, direcciones(direccion)', { count: 'exact' }).order('nombre').range(desde, hasta);
   if (q.trim()) consulta = consulta.ilike('nombre', patron(q));
   const res = await consulta;
   return { filas: exigir(res) as Ubicacion[], total: res.count ?? 0 };

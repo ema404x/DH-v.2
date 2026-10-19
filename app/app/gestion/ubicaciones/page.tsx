@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { MapPin, Pencil, Plus, QrCode, Save, X } from 'lucide-react';
+import { FileDown, MapPin, Pencil, Plus, QrCode, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Boton } from '@/components/Boton';
 import { Campo, Casilla, oNull } from '@/components/Campos';
 import { ErrorVista, Esqueleto, Vacio } from '@/components/Estados';
+import { ExportarQRs } from '@/components/gestion/ExportarQRs';
 import { QRImprimible } from '@/components/gestion/QRImprimible';
 import { Tabla, type Columna } from '@/components/gestion/Tabla';
 import { crearUbicacion, guardarUbicacion, listarUbicaciones } from '@/lib/gestion';
@@ -76,6 +77,7 @@ export default function Ubicaciones() {
   }, [texto]);
 
   const carga = useCarga(() => listarUbicaciones(q, pagina), [q, pagina]);
+  const [exportar, setExportar] = useState(false);
 
   const columnas: Columna<Ubicacion>[] = [
     {
@@ -87,7 +89,8 @@ export default function Ubicaciones() {
         </>
       ),
     },
-    { titulo: 'Dirección', celda: (u) => u.direccion ?? '—', secundaria: true },
+    // Los lugares importados del directorio tienen la dirección en su edificio (direcciones).
+    { titulo: 'Dirección', celda: (u) => u.direccion ?? (u as Ubicacion & { direcciones?: { direccion: string } | null }).direcciones?.direccion ?? '—', secundaria: true },
     { titulo: 'Zona', celda: (u) => u.zona ?? '—', secundaria: true },
     {
       titulo: 'Acciones',
@@ -125,12 +128,17 @@ export default function Ubicaciones() {
     <>
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1>Ubicaciones</h1>
-        {esGerencia && (
-          <Boton variante="primario" icono={Plus} onClick={() => setFormulario({ ubicacion: null })}>
-            Nueva ubicación
-          </Boton>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <Boton icono={FileDown} onClick={() => setExportar(true)}>Exportar QRs</Boton>
+          {esGerencia && (
+            <Boton variante="primario" icono={Plus} onClick={() => setFormulario({ ubicacion: null })}>
+              Nueva ubicación
+            </Boton>
+          )}
+        </div>
       </header>
+
+      {exportar && <ExportarQRs onCerrar={() => setExportar(false)} />}
 
       {conQR && (
         <section className="tarjeta space-y-3">
