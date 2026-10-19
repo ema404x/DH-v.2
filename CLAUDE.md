@@ -526,8 +526,9 @@ datos y cálculos en `lib/dashboard.ts` (sin SQL nuevo).
   fichó, sus obras, a cobrar de sus obras y certificados que esperan su firma. Escanear QR y Nueva orden.
 - Tema claro/oscuro guardado en el navegador (`dh1-tema-dashboard`, oscuro por defecto).
 - `/gestion/ots` ahora lee `?estado=` (abre la grilla filtrada) y `?ot=` (abre la orden).
-- No hay "cobrado" en la v2 (DH1 no cobra): la plata es lo certificado. Verificado en vivo solo con la base vacía
-  (gerencia, los dos temas, los tres períodos); la curva con datos y la vista del jefe falta verla con datos reales.
+- No hay "cobrado" en la v2 (DH1 no cobra): la plata es lo certificado. Verificado en vivo con la base vacía
+  (gerencia, los dos temas, los tres períodos) y, el 19/10, con datos inventados en una página local que no se subió
+  (las dos vistas, los dos temas, Devolver con motivo). Falta: la vista del jefe con un usuario jefe real.
 
 ## 4. Lo que falta (fuera de las 5 fases, en orden de valor)
 **La lista completa y priorizada contra la v1 está en `INVENTARIO-v1-v2.md` (relevada el 7/10/2026).** Va primero.

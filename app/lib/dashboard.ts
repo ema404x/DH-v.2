@@ -66,7 +66,7 @@ export function calcularPlata(certs: CertificadoFila[], p: Periodo, aCobrar: num
       acum += delPeriodo.filter((c) => c.fecha_certificado.startsWith(pre)).reduce((s, c) => s + Number(c.total_neto || 0), 0);
       puntos.push(acum);
     }
-    etiquetas.push('ene', 'mar', 'may', 'jul', 'sep', 'nov');
+    etiquetas.push('ene', 'mar', 'may', 'jul', 'sep', 'dic');
   } else {
     const ini = new Date(`${r.desde}T12:00:00`);
     const dias = p === 'hoy' ? 1 : new Date(ini.getFullYear(), ini.getMonth() + 1, 0).getDate();
@@ -80,8 +80,13 @@ export function calcularPlata(certs: CertificadoFila[], p: Periodo, aCobrar: num
     const mes = MESES[ini.getMonth()].slice(0, 3);
     etiquetas.push(...(p === 'hoy' ? ['0 h', '24 h'] : [`1 ${mes}`, `8 ${mes}`, `15 ${mes}`, `22 ${mes}`, `${dias} ${mes}`]));
   }
+  // En el período en curso la curva termina hoy (los días que faltan no se dibujan planos).
+  const ahora = new Date();
+  const corte = p === 'mes' && iso(ahora).slice(0, 7) === r.desde.slice(0, 7) ? ahora.getDate() - 1
+    : p === 'anio' && String(ahora.getFullYear()) === r.desde.slice(0, 4) ? ahora.getMonth()
+      : puntos.length - 1;
   const max = Math.max(...puntos, 1);
-  const curva = puntos.map((v, i) => ({ x: (i / Math.max(puntos.length - 1, 1)) * 800, y: 150 - (v / max) * 130 }));
+  const curva = puntos.slice(0, corte + 1).map((v, i) => ({ x: (i / Math.max(puntos.length - 1, 1)) * 800, y: 150 - (v / max) * 130 }));
   return { total, anterior, aprobado, porAprobar, aCobrar, curva, etiquetas, porFirmar };
 }
 
@@ -91,8 +96,10 @@ export function trazoSuave(pts: { x: number; y: number }[]): string {
   let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
   for (let i = 0; i < pts.length - 1; i++) {
     const p0 = pts[i - 1] ?? pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] ?? p2;
-    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+    // Los puntos de control no salen del tramo: la curva acumulada nunca baja ni se pasa.
+    const lo = Math.min(p1.y, p2.y), hi = Math.max(p1.y, p2.y), cl = (y: number) => Math.min(hi, Math.max(lo, y));
+    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = cl(p1.y + (p2.y - p0.y) / 6);
+    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = cl(p2.y - (p3.y - p1.y) / 6);
     d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
   }
   return d;

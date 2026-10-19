@@ -218,7 +218,7 @@ export function Curva({ puntos, etiquetas, k }: { puntos: { x: number; y: number
       <div style={{ position: 'relative', height: 160 }}>
         <svg viewBox="0 0 800 160" preserveAspectRatio="none" style={{ width: '100%', height: 160, display: 'block' }} aria-hidden>
           <defs><linearGradient id="dhArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={IOS.azul} stopOpacity="0.38" /><stop offset="1" stopColor={IOS.azul} stopOpacity="0" /></linearGradient></defs>
-          {d && <path d={`${d} L800,160 L0,160 Z`} fill="url(#dhArea)" />}
+          {d && ult && <path d={`${d} L${ult.x.toFixed(1)},160 L0,160 Z`} fill="url(#dhArea)" />}
           {d && <path d={d} fill="none" stroke={IOS.azul} strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
         </svg>
         {ult && <span style={{ position: 'absolute', left: `${(ult.x / 800) * 100}%`, top: ult.y, width: 14, height: 14, marginLeft: -7, marginTop: -7, borderRadius: 7, background: IOS.azul, border: '3px solid #FFFFFF' }} />}
