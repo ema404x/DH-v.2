@@ -584,8 +584,13 @@ archivo suyo fuera del repo (nunca se mostró ni se copió). **No se escribió n
   (sin eso, 0: el catálogo no tiene sector en la v1) · gente 17→15 · obras 413 (+104 del tablero de cobro) · admin 39.
   Pendientes, emergencias, calefacción, inspecciones, pañol, plantillas e informes: **0 en la v1** (confirmado en la pantalla
   de la v1: 0 emergencias). 15 empleados sin usuario en v2 → `perfiles_pendientes.json`.
-- Ojo: las 540 ubicaciones de la v1 se suman a los 232 lugares importados de la planilla (fase 17): **antes del --apply hay
-  que decidir cómo se juntan** (por ubicación técnica/código o nombre), si no quedan duplicados.
+- Las escuelas de la v1 se juntan con los 232 lugares ya importados de la planilla (`migracion/emparejar.ts`, pruebas
+  `emparejar.test.ts` 6/6): mismo sector, comuna y nombre normalizado, par único de los dos lados; se le pone `id_origen`
+  al lugar existente y solo se completan sus datos vacíos (jefe, GPS…). Medido con la planilla: 217 de 330 se juntan,
+  8 homónimas se crean aparte (se reportan), 105 no están en la planilla. En la v1 `ubic_tecnica` trae el **nombre** de
+  la escuela, no el código SAP: ahora solo se carga como código si tiene forma `C-IE-…`.
+- La v1 tiene **jefe de sitio en las 330 escuelas** (la planilla no los traía): entran con la migración.
+- Para `--apply`: `--sector-de=RutinaCatalogo:escuela --sector-de=LocationQR:escuela` (LocationQR: confirmar sector).
 - El `--apply` necesita `SUPABASE_SERVICE_ROLE_KEY` (la pone Emanuel en su terminal) y su OK. No se corrió.
 
 ## 4. Lo que falta (fuera de las 5 fases, en orden de valor)

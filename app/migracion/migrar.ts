@@ -18,6 +18,7 @@
 // Variables de entorno (ver migracion/README.md). La service_role key se usa SOLO en este script.
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import { codigoSAP, emparejar } from './emparejar.ts';
 
 type Reg = Record<string, any>;
 
@@ -276,7 +277,8 @@ async function migrarUbicaciones() {
     const insp = responsable(u.inspector);
     filas.push({
       id_origen: u.id, origen_entidad: 'LocationData', sector_id: sector,
-      nombre: u.establecimiento, codigo: texto(u.ubic_tecnica), zona: texto(u.comuna), m2: numero(u.m2),
+      // En la v1 "ubic_tecnica" casi siempre trae el nombre de la escuela: solo un código SAP cuenta como código.
+      nombre: u.establecimiento, codigo: codigoSAP(u.ubic_tecnica), zona: texto(u.comuna), m2: numero(u.m2),
       lat: numero(u.gps_latitude), lng: numero(u.gps_longitude), activa: u.estado !== 'inactivo',
       direccion_id: direcciones.get(u.direccion_id) ?? null, elem_pep: texto(u.elem_pep),
       jefe_sitio_id: jefe.id, jefe_sitio_nombre: jefe.nombre, inspector_id: insp.id, inspector_nombre: insp.nombre,
@@ -298,8 +300,38 @@ async function migrarUbicaciones() {
     ubicacionPorNombre.set(`${sector}|${norm(u.name)}`, u.id);
   }
   r.cargar = filasDir.length + filas.length;
+
+  // Escuelas que ya están en la v2 (p. ej. importadas de la planilla el 19/10/2026): se reusa ese lugar en vez de
+  // duplicarlo. Se le pone el id_origen y solo se completan los datos que le faltan (no se pisa lo de la planilla).
+  let emparejadas = new Set<string>();
+  if (sb) {
+    const { data: existentes, error } = await sb.from('ubicaciones').select('id, sector_id, nombre, zona, id_origen, codigo, m2, direccion_id, jefe_sitio_id, jefe_sitio_nombre, inspector_id, inspector_nombre, lat, lng').limit(20000);
+    if (error) throw new Error(`Error al leer ubicaciones: ${error.message}`);
+    const deV1 = filas.filter((f) => f.origen_entidad === 'LocationData');
+    const { pares, ambiguos } = emparejar(deV1.map((f) => ({ id_origen: f.id_origen, sector_id: f.sector_id, nombre: f.nombre, zona: f.zona })), existentes ?? []);
+    emparejadas = new Set(pares.keys());
+    aviso(r, `${pares.size} escuelas de la v1 se juntan con lugares que ya estaban en la v2 (mismo nombre y comuna); ${ambiguos.length} homónimas se crean aparte.`);
+    for (const n of ambiguos) aviso(r, `Escuela homónima, se crea aparte (revisar a mano): ${n}`);
+    if (APPLY && corre('ubicaciones')) {
+      const porId = new Map((existentes ?? []).map((l) => [l.id, l]));
+      for (const f of deV1) {
+        const id = pares.get(f.id_origen);
+        if (!id) continue;
+        const l = porId.get(id)!;
+        const parche: Reg = { id_origen: f.id_origen, origen_entidad: 'LocationData' };
+        for (const k of ['codigo', 'm2', 'direccion_id', 'jefe_sitio_id', 'jefe_sitio_nombre', 'inspector_id', 'inspector_nombre', 'lat', 'lng']) {
+          if ((l as Reg)[k] === null && f[k] !== null && f[k] !== undefined) parche[k] = f[k];
+        }
+        const { error: e2 } = await sb.from('ubicaciones').update(parche).eq('id', id);
+        if (e2) throw new Error(`Error al juntar ${f.nombre}: ${e2.message}`);
+      }
+    }
+  } else {
+    aviso(r, 'Sin conexión a la v2: no se calculó cuántas escuelas se juntan con lugares existentes (con el --apply se hace solo).');
+  }
+
   // PostgREST pide las mismas columnas en todo el lote.
-  const completas = filas.map((f) => ({
+  const completas = filas.filter((f) => !emparejadas.has(f.id_origen)).map((f) => ({
     direccion: null, descripcion: null, direccion_id: null, elem_pep: null, jefe_sitio_nombre: null, inspector_id: null, inspector_nombre: null, ...f,
   }));
   if (corre('ubicaciones')) await subir('ubicaciones', completas);
