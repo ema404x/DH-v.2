@@ -574,6 +574,20 @@ direcciones**, zonas 8A/8B/10A, sin jefes (la planilla no los trae).
   (3263,3 con código y 2606,7 sin código); quedó un solo lugar con 2606,7. "Estados Unidos 1228" está en las 3 comunas con
   códigos distintos: quedaron 3 lugares.
 
+## Migración desde Base44: simulacro real (19/10/2026)
+Primer simulacro contra la v1 de verdad (app `69bc7d2a6f0e7ed160c90003`), con el token personal de Emanuel leído de un
+archivo suyo fuera del repo (nunca se mostró ni se copió). **No se escribió nada en Supabase.**
+- Corrección del script: el token personal de Base44 va como `Authorization: Bearer` (con el encabezado `api_key`, aunque
+  vaya junto, responde 401).
+- Resultado (origen → a cargar): sectores 2→2 · ubicaciones 540→540 · activos 332→332 · OTs 2182→2182 · certificados
+  283→247 (5 borradores y 31 de tipo "informe" no van) · rutinas 17429→16929 con `--sector-de=RutinaCatalogo:escuela`
+  (sin eso, 0: el catálogo no tiene sector en la v1) · gente 17→15 · obras 413 (+104 del tablero de cobro) · admin 39.
+  Pendientes, emergencias, calefacción, inspecciones, pañol, plantillas e informes: **0 en la v1** (confirmado en la pantalla
+  de la v1: 0 emergencias). 15 empleados sin usuario en v2 → `perfiles_pendientes.json`.
+- Ojo: las 540 ubicaciones de la v1 se suman a los 232 lugares importados de la planilla (fase 17): **antes del --apply hay
+  que decidir cómo se juntan** (por ubicación técnica/código o nombre), si no quedan duplicados.
+- El `--apply` necesita `SUPABASE_SERVICE_ROLE_KEY` (la pone Emanuel en su terminal) y su OK. No se corrió.
+
 ## 4. Lo que falta (fuera de las 5 fases, en orden de valor)
 **La lista completa y priorizada contra la v1 está en `INVENTARIO-v1-v2.md` (relevada el 7/10/2026).** Va primero.
 

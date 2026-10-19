@@ -65,7 +65,9 @@ async function leerEntidad(entidad: string): Promise<Reg[]> {
   const LOTE = 500;
   for (let salto = 0; ; salto += LOTE) {
     const r = await fetch(`${B44_URL}/${B44_APP}/entities/${entidad}?limit=${LOTE}&skip=${salto}`, {
-      headers: { api_key: B44_KEY, 'Content-Type': 'application/json' },
+      // El token personal de Base44 va como Bearer (probado el 19/10/2026: con el encabezado api_key, aunque vaya
+      // junto al Bearer, responde 401).
+      headers: { Authorization: `Bearer ${B44_KEY}`, 'Content-Type': 'application/json' },
     });
     if (!r.ok) throw new Error(`Base44 respondió ${r.status} al leer ${entidad}: ${await r.text()}`);
     const lote = (await r.json()) as Reg[];
