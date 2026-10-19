@@ -1545,6 +1545,7 @@ ok('gerencia ve el registro con nombre e IP de cada acción',
   x18log.filter((a) => a.accion === 'entrar').length === 3 && x18log.some((a) => a.accion === 'iniciar' && a.nombre === 'Juan Pérez' && a.ip === '7.7.7.7')
   && x18log.some((a) => a.accion === 'foto') && x18log.filter((a) => a.accion === 'finalizar').length === 2, JSON.stringify(x18log));
 await como(U.opE);
+ok('anon no tiene permisos sobre el registro ni sobre v_ordenes', (await uno(`select has_table_privilege('anon', 'public.portal_acciones', 'select') a, has_table_privilege('anon', 'public.v_ordenes', 'select') b`)).a === false);
 ok('un operario no ve el registro', (await q(`select * from portal_acciones`)).length === 0);
 await como(U.gerB);
 ok('gerencia de bapro no ve el registro de escuela', (await q(`select * from portal_acciones`)).length === 0);

@@ -517,7 +517,10 @@ v1, reglas de la v2**. Fuente: el clon actual de la v1 (GitHub ema404x/DH1b44, 6
 ## Portal de operarios sin usuario (fase 16, 19/10/2026)
 Decisión de Emanuel (opción C): reabre "todo con login" (§2 bis) SOLO para esto. Pantalla = `PortalOperario.jsx` +
 `EjecutarOTEnPortal.jsx` de la v1 (clon del 14/10/2026); reglas de la v2.
-- `dh1-v2-fase16-portal-operarios.sql` (pruebas 514/514, sección 18). **NO corrida todavía en el Supabase real.**
+- `dh1-v2-fase16-portal-operarios.sql` (pruebas 515/515, sección 18). **Corrida en el Supabase real el 19/10/2026** con el OK
+  de Emanuel (hash 401ca101… verificado en el editor; después, las 2 líneas finales de `revoke … from anon` corridas aparte
+  porque Supabase da permisos por defecto a anon en lo nuevo; consulta de control OK). Antes se confirmó que `auth.uid()`
+  de la base lee primero `request.jwt.claim.sub`.
 - Cómo: un usuario "Portal QR" por sector (rol operario, nadie entra con él). Las funciones `portal_*` (solo
   `service_role`) validan el pase y **actúan como ese usuario** (`request.jwt.claim.sub` local a la transacción), así
   la máquina de estados, el checklist obligatorio, las fotos y el sector los sigue controlando la base. Con la clave de
@@ -534,7 +537,7 @@ Decisión de Emanuel (opción C): reabre "todo con login" (§2 bis) SOLO para es
   Sectores (`components/gestion/PortalOperarios.tsx`, solo admin).
 - Diferencias con la v1 a sabiendas: la lista se ve recién después de la clave (en la v1 se veía sin clave); el
   checklist se marca en el portal (la v2 lo exige); el portal necesita señal (la v1 tenía cola sin señal: pendiente).
-- Falta: correr el SQL, desplegar la función, crear el usuario Portal QR y configurar la clave; probar de punta a punta.
+- Falta: desplegar la función, crear el usuario Portal QR y configurar la clave; probar de punta a punta.
 
 ## Tablero de inicio estilo Apple (8/10/2026)
 Emanuel pidió un tablero "premium"; de dos rondas de bocetos aprobó el estilo Apple/iOS (claro y oscuro, distinto por rol).

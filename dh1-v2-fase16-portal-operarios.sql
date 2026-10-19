@@ -413,3 +413,6 @@ select o.*,
   left join public.obras ob      on ob.id = o.obra_id;
 grant select on public.v_ordenes to authenticated;
 grant all on public.v_ordenes to service_role;
+-- Supabase da permisos por defecto a anon en lo que se crea: anon no lee órdenes ni el registro del portal.
+revoke all on public.v_ordenes from anon;
+revoke all on public.portal_acciones from anon;
