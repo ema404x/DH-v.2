@@ -341,6 +341,7 @@ export function WorkOrderDetailPanel({ order, personas, onClose, onChanged }: {
                 <option value="">Nombre del responsable…</option>
                 {asignables.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
+              {fresh.portal_nombre && <p className="mt-1 truncate text-[9px] text-sky-400" title="La trabajó desde el portal de operarios">Portal: {fresh.portal_nombre}</p>}
             </div>
             <div>
               <p className="mb-1.5 text-[9px] uppercase tracking-widest text-slate-500">Fecha</p>

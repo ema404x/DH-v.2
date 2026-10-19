@@ -148,6 +148,8 @@ export interface OT {
   // Firma de conformidad (fase 15)
   firma_url?: string | null;
   firma_nombre?: string | null;
+  // Nombre tipeado por quien la trabajó desde el portal sin usuario (fase 16).
+  portal_nombre?: string | null;
   firma_at?: string | null;
 }
 

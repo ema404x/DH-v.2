@@ -512,7 +512,29 @@ v1, reglas de la v2**. Fuente: el clon actual de la v1 (GitHub ema404x/DH1b44, 6
   fichaje, cuadrilla y "Reportar una emergencia". Con sesión, la pantalla va dentro del marco de la v1; el operario ve el menú
   recortado (Mis Órdenes, Emergencias → /emergencia, Foro, Sugerencias, Ayuda) y no ve el buscador.
 - PDF de la orden: `lib/pdfOT.ts` = exportWorkOrderPDF de la v1 (botón del panel). Logo de la v1 desde Base44; si no carga, el de `public/certificados`. "En validación" tiene su color (en la v1 caía en PENDIENTE).
-- Portales sin login: propuesta en `PROPUESTA-portales-sin-login.md` (opciones A/B/C, recomendada A). Falta la decisión de Emanuel.
+- Portales sin login: propuesta en `PROPUESTA-portales-sin-login.md`. **Emanuel eligió la C el 19/10/2026** (ver abajo).
+
+## Portal de operarios sin usuario (fase 16, 19/10/2026)
+Decisión de Emanuel (opción C): reabre "todo con login" (§2 bis) SOLO para esto. Pantalla = `PortalOperario.jsx` +
+`EjecutarOTEnPortal.jsx` de la v1 (clon del 14/10/2026); reglas de la v2.
+- `dh1-v2-fase16-portal-operarios.sql` (pruebas 514/514, sección 18). **NO corrida todavía en el Supabase real.**
+- Cómo: un usuario "Portal QR" por sector (rol operario, nadie entra con él). Las funciones `portal_*` (solo
+  `service_role`) validan el pase y **actúan como ese usuario** (`request.jwt.claim.sub` local a la transacción), así
+  la máquina de estados, el checklist obligatorio, las fotos y el sector los sigue controlando la base. Con la clave de
+  servicio sola, `es_servicio()` se saltearía todas las reglas: por eso no se usa así.
+- Clave del sector con sal + sha256 (`portal_config`, el hash no se lee por la API); 5 intentos fallidos por IP en
+  15 min bloquean; pase de 12 h (guardado con hash); cambiar la clave o apagar el portal corta los pases (`cortes_at`).
+  Mismo mensaje para QR inexistente y clave mala. Solo órdenes del lugar del QR (o de sus equipos; o del equipo si el QR
+  es de un activo). Solo iniciar, fotos, finalizar (con motivo si faltan tareas, notas y firma opcional). En curso, la
+  sigue solo el mismo nombre (como `canActOn` de la v1). Registro `portal_acciones` (nombre, IP) que lee gerencia.
+  `ordenes_trabajo.portal_nombre` (se ve en el panel de la orden).
+- Edge function `portal-operarios` (`--no-verify-jwt`): IP, subida de fotos al bucket (JPEG ≤ 2 MB, ruta que da la base).
+- App: `/portal?t=<token>` (`app/portal/page.tsx`, `lib/portal.ts`), sin sesión en el middleware; el login ofrece
+  "entrar con la clave de operarios" si se llegó desde un QR (el QR sigue siendo uno solo: `/q?t=`); configuración en
+  Sectores (`components/gestion/PortalOperarios.tsx`, solo admin).
+- Diferencias con la v1 a sabiendas: la lista se ve recién después de la clave (en la v1 se veía sin clave); el
+  checklist se marca en el portal (la v2 lo exige); el portal necesita señal (la v1 tenía cola sin señal: pendiente).
+- Falta: correr el SQL, desplegar la función, crear el usuario Portal QR y configurar la clave; probar de punta a punta.
 
 ## Tablero de inicio estilo Apple (8/10/2026)
 Emanuel pidió un tablero "premium"; de dos rondas de bocetos aprobó el estilo Apple/iOS (claro y oscuro, distinto por rol).

@@ -28,8 +28,10 @@ export async function middleware(request: NextRequest) {
   // sin señal. No se redirigen desde el servidor (quedaría guardado el login en su lugar): si no hay
   // sesión, ellas mismas mandan al ingreso.
   const abreSinSenal = ruta === '/' || ruta === '/mis-ots';
+  // Portal de operarios sin usuario (fase 16): entra con la clave del sector, no con sesión.
+  const portal = ruta === '/portal';
 
-  if (!data.user && !enLogin && !abreSinSenal) {
+  if (!data.user && !enLogin && !abreSinSenal && !portal) {
     const destino = request.nextUrl.clone();
     destino.pathname = '/login';
     destino.search = '';

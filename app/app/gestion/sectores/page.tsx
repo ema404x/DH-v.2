@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { Layers, Plus, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Boton } from '@/components/Boton';
+import { PortalOperarios } from '@/components/gestion/PortalOperarios';
 import { Area, Campo, Casilla } from '@/components/Campos';
 import { ErrorVista, Esqueleto, Vacio } from '@/components/Estados';
 import { guardarSector, listarSectores, resumenSector, type SectorCompleto } from '@/lib/admin';
@@ -111,6 +112,7 @@ export default function Sectores() {
           </dl>
         </section>
       )}
+      <PortalOperarios sectorId={sectorEfectivo?.id} />
       {carga.cargando && !carga.datos ? <Esqueleto filas={3} /> : carga.error ? <ErrorVista mensaje={carga.error} onReintentar={carga.recargar} /> : (
         <ul className="space-y-2">
           {(carga.datos ?? []).map((s) => (

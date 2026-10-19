@@ -2,7 +2,7 @@
 
 import { Suspense, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { LogIn } from 'lucide-react';
+import { KeyRound, LogIn } from 'lucide-react';
 import { Boton } from '@/components/Boton';
 import { Campo } from '@/components/Campos';
 import { supabase } from '@/lib/supabase/client';
@@ -43,7 +43,19 @@ function Formulario() {
       <Boton type="submit" variante="primario" icono={LogIn} campo ancho cargando={entrando}>
         Ingresar
       </Boton>
+      <PortalDesdeQR volver={params.get('volver')} />
     </form>
+  );
+}
+
+// Si llegó escaneando el QR de un lugar y no tiene usuario: el portal de operarios con la clave.
+function PortalDesdeQR({ volver }: { volver: string | null }) {
+  const token = volver?.startsWith('/q?') ? new URLSearchParams(volver.slice(3)).get('t') : null;
+  if (!token) return null;
+  return (
+    <a href={`/portal?t=${encodeURIComponent(token)}`} className="flex min-h-control items-center justify-center gap-2 rounded border border-borde px-3 text-primario">
+      <KeyRound className="h-4 w-4" aria-hidden /> No tengo usuario: entrar con la clave de operarios
+    </a>
   );
 }
 

@@ -26,7 +26,7 @@ await db.exec(`
   grant execute on function auth.uid() to anon, authenticated, service_role;
 `);
 
-for (const f of ['dh1-v2-fundacion.sql', 'dh1-v2-fase3-gestion.sql', 'dh1-v2-fase4-certificacion.sql', 'dh1-v2-fase5-migracion.sql', 'dh1-v2-fase6-operacion.sql', 'dh1-v2-fase7-informe-ia.sql', 'dh1-v2-fase8-gente.sql', 'dh1-v2-fase9-obras.sql', 'dh1-v2-fase10-panol.sql', 'dh1-v2-fase11-control.sql', 'dh1-v2-fase12-administracion.sql', 'dh1-v2-fase13-ajustes.sql', 'dh1-v2-fase14-certificados-v1.sql', 'dh1-v2-fase15-ot-obra-firma.sql']) {
+for (const f of ['dh1-v2-fundacion.sql', 'dh1-v2-fase3-gestion.sql', 'dh1-v2-fase4-certificacion.sql', 'dh1-v2-fase5-migracion.sql', 'dh1-v2-fase6-operacion.sql', 'dh1-v2-fase7-informe-ia.sql', 'dh1-v2-fase8-gente.sql', 'dh1-v2-fase9-obras.sql', 'dh1-v2-fase10-panol.sql', 'dh1-v2-fase11-control.sql', 'dh1-v2-fase12-administracion.sql', 'dh1-v2-fase13-ajustes.sql', 'dh1-v2-fase14-certificados-v1.sql', 'dh1-v2-fase15-ot-obra-firma.sql', 'dh1-v2-fase16-portal-operarios.sql']) {
   try {
     await db.exec(readFileSync(join(raiz, f), 'utf8'));
     console.log(`cargado  ${f}`);
@@ -1425,6 +1425,149 @@ const x17v = await uno(`select firma_url, firma_nombre from v_ordenes where id =
 ok('v_ordenes trae la firma', x17v.firma_url === 'data:image/png;base64,FIRMA' && x17v.firma_nombre === 'Juan Pérez');
 const x17b = await uno(`update ordenes_trabajo set firma_url = null where id = $1 returning firma_nombre, firma_at`, [x17ot3]);
 ok('borrar la firma limpia el nombre y la fecha', x17b.firma_nombre === null && x17b.firma_at === null);
+await servicio();
+
+// ---------------------------------------------------------------- 18. fase 16: portal de operarios
+titulo('18. Portal de operarios sin usuario (fase 16)');
+async function comoServicio() {
+  await db.exec(`reset role; select set_config('request.jwt.claim.sub', '', false); set role service_role;`);
+}
+await servicio();
+U.portE = '00000000-0000-0000-0000-00000000c0de';
+await db.query(`insert into auth.users (id, email) values ($1, 'portal@dh1.test')`, [U.portE]);
+await db.query(`insert into perfiles (id, email, nombre, rol, sector_id) values ($1, 'portal@dh1.test', 'Portal QR', 'operario', $2)`, [U.portE, escuela]);
+
+// configuración
+await como(U.gerE);
+await rechaza('solo un admin configura el portal', `select set_portal_operarios($1, 'clave123')`, /Solo un administrador/, [U.portE]);
+await como(U.adm);
+await rechaza('el usuario del portal tiene que ser operario', `select set_portal_operarios($1, 'clave123')`, /operario activo/, [U.jefeE]);
+await rechaza('la clave tiene al menos 6 caracteres', `select set_portal_operarios($1, '123')`, /6 caracteres/, [U.portE]);
+await db.query(`select set_portal_operarios($1, 'clave123')`, [U.portE]);
+const x18cfg = (await uno(`select ver_portal_operarios() as c`)).c;
+ok('el admin ve la configuración sin la clave', x18cfg.perfil_id === U.portE && x18cfg.activo === true && !('clave_hash' in x18cfg));
+await rechaza('nadie lee la tabla de la clave por la API', `select * from portal_config`, /permission denied/);
+
+// solo la edge function (service_role) llama al portal
+await rechaza('un usuario con sesión no puede usar el portal', `select portal_entrar('x', 'y', 'z', '1.1.1.1')`, /permission denied/);
+await db.exec(`reset role; set role anon;`);
+await rechaza('anon no puede usar el portal', `select portal_ordenes('x')`, /permission denied/);
+
+// datos: el lugar del QR (ubiE) con dos órdenes, otro lugar, y bapro
+await como(U.gerE);
+const x18ubi2 = (await uno(`insert into ubicaciones (nombre) values ('Escuela 99') returning id, qr_token`));
+const x18a = (await uno(`insert into ordenes_trabajo (titulo, ubicacion_id, checklist)
+  values ('Portal: cambiar lámpara', $1, '[{"id":"t1","tarea":"Cortar luz","hecho":false},{"id":"t2","tarea":"Cambiar","hecho":false}]') returning id`, [ubiE.id])).id;
+const x18f = (await uno(`insert into ordenes_trabajo (titulo, ubicacion_id, requiere_fotos) values ('Portal: con fotos', $1, true) returning id`, [ubiE.id])).id;
+const x18otro = (await uno(`insert into ordenes_trabajo (titulo, ubicacion_id) values ('Portal: otro lugar', $1) returning id`, [x18ubi2.id])).id;
+const x18act = (await uno(`insert into ordenes_trabajo (titulo, activo_id) values ('Portal: del equipo', $1) returning id`, [actE.id])).id;
+
+// entrar
+await comoServicio();
+const x18e1 = (await uno(`select portal_entrar($1, 'mala', 'Juan Pérez', '9.9.9.9') as r`, [ubiE.qr_token])).r;
+ok('clave equivocada: avisa y no da pase', x18e1.error === 'Clave incorrecta. Consultá con tu supervisor.' && !x18e1.pase, JSON.stringify(x18e1));
+const x18e2 = (await uno(`select portal_entrar('no-existe', 'clave123', 'Juan Pérez', '9.9.9.9') as r`)).r;
+ok('un QR que no existe da el mismo mensaje que la clave equivocada', x18e2.error === x18e1.error);
+const x18e3 = (await uno(`select portal_entrar($1, 'clave123', 'J', '8.8.8.8') as r`, [ubiE.qr_token])).r;
+ok('sin nombre no entra', /nombre/.test(x18e3.error ?? ''));
+for (let i = 0; i < 3; i++) await db.query(`select portal_entrar($1, 'mala', 'Juan Pérez', '9.9.9.9')`, [ubiE.qr_token]);
+const x18e4 = (await uno(`select portal_entrar($1, 'clave123', 'Juan Pérez', '9.9.9.9') as r`, [ubiE.qr_token])).r;
+ok('5 intentos fallidos desde la misma IP bloquean, aunque después pongan la clave bien', /Demasiados intentos/.test(x18e4.error ?? ''), JSON.stringify(x18e4));
+const x18ok = (await uno(`select portal_entrar($1, ' clave123 ', '  Juan   Pérez ', '7.7.7.7') as r`, [ubiE.qr_token])).r;
+ok('con la clave bien, desde otra IP, entra y recibe un pase', typeof x18ok.pase === 'string' && x18ok.pase.length === 64 && x18ok.lugar.nombre === 'Escuela 21' && x18ok.nombre === 'Juan Pérez', JSON.stringify(x18ok));
+const P = x18ok.pase;
+ok('el pase no se guarda en claro', (await uno(`select count(*)::int n from portal_pases where hash = $1`, [P])).n === 0);
+
+// órdenes del lugar
+const x18l = (await uno(`select portal_ordenes($1) as r`, [P])).r;
+const x18ids = x18l.map((o) => o.id);
+ok('ve las órdenes del lugar y las de sus equipos', x18ids.includes(x18a) && x18ids.includes(x18f) && x18ids.includes(x18act) && x18ids.includes(otE.id));
+ok('no ve las de otro lugar ni las de bapro', !x18ids.includes(x18otro) && x18l.every((o) => o.titulo !== 'Cambiar filtro'));
+await rechaza('un pase inventado no sirve', `select portal_ordenes('a'||repeat('0', 63))`, /venció/);
+
+// iniciar
+const x18i = (await uno(`select portal_iniciar($1, $2, '{"lat":-34.6,"lng":-58.4,"precision":12}') as r`, [P, x18a])).r;
+ok('inicia la orden', x18i.estado === 'en_progreso');
+await servicio();
+const x18ai = await uno(`select estado::text, asignado_a, portal_nombre, gps_lat, fecha_inicio_real from ordenes_trabajo where id = $1`, [x18a]);
+ok('queda a nombre del usuario del portal y del nombre tipeado, con GPS y hora de inicio',
+  x18ai.asignado_a === U.portE && x18ai.portal_nombre === 'Juan Pérez' && x18ai.gps_lat === -34.6 && !!x18ai.fecha_inicio_real, JSON.stringify(x18ai));
+await comoServicio();
+await rechaza('no se inicia una orden de otro lugar', `select portal_iniciar($1, $2)`, /no es de este lugar/, [P, x18otro]);
+await rechaza('no se inicia dos veces', `select portal_iniciar($1, $2)`, /ya no está para empezar/, [P, x18a]);
+
+// otra persona no la termina
+const P2 = (await uno(`select portal_entrar($1, 'clave123', 'Pedro Gómez', '6.6.6.6') as r`, [ubiE.qr_token])).r.pase;
+await rechaza('otra persona no puede terminar la orden de Juan', `select portal_finalizar($1, $2, '{t1,t2}', null, null, null, null)`, /la está haciendo Juan Pérez/, [P2, x18a]);
+const P3 = (await uno(`select portal_entrar($1, 'clave123', 'juan perez', '6.6.6.6') as r`, [ubiE.qr_token])).r.pase;
+
+// finalizar: la base sigue mandando
+await rechaza('con tareas sin hacer y sin motivo, la base no deja finalizar', `select portal_finalizar($1, $2, '{t1}', null, null, null, null)`, /Faltan tareas/, [P3, x18a]);
+const x18fin = (await uno(`select portal_finalizar($1, $2, '{t1}', 'No había repuesto', 'Queda la lámpara vieja', 'data:image/png;base64,F', null) as r`, [P3, x18a])).r;
+ok('el mismo nombre (sin importar mayúsculas ni acentos) finaliza con el motivo', x18fin.estado === 'pendiente_validacion');
+await servicio();
+const x18af = await uno(`select checklist, motivos_incompleto, notas, firma_nombre, fecha_fin_real from ordenes_trabajo where id = $1`, [x18a]);
+ok('marca solo la tarea hecha, guarda motivo, nota y firma',
+  x18af.checklist[0].hecho === true && x18af.checklist[1].hecho === false && x18af.checklist[1].tarea === 'Cambiar'
+  && x18af.motivos_incompleto[0].texto === 'No había repuesto' && /\[Portal · juan perez\] Queda la lámpara vieja/.test(x18af.notas)
+  && x18af.firma_nombre === 'juan perez' && !!x18af.fecha_fin_real, JSON.stringify(x18af));
+await comoServicio();
+await rechaza('una orden enviada al jefe ya no se toca desde el portal', `select portal_finalizar($1, $2, '{}', 'x', null, null, null)`, /no está en curso/, [P3, x18a]);
+
+// fotos
+await db.query(`select portal_iniciar($1, $2)`, [P, x18f]);
+await rechaza('la orden que pide fotos no se finaliza sin fotos', `select portal_finalizar($1, $2, '{}', null, null, null, null)`, /pide fotos/, [P, x18f]);
+const x18foto = '00000000-0000-0000-0000-0000000f0d16';
+await rechaza('el id de una foto de otra orden no se reusa', `select portal_foto($1, $2, $3, $4, 'http://x/f.jpg')`, /no corresponde/,
+  [P, x18f, fotoId, `${escuela}/${x18f}/${fotoId}.jpg`]);
+await rechaza('una foto con una ruta de otra orden no se registra', `select portal_foto($1, $2, $3, $4, 'http://x/f.jpg')`, /no corresponde/,
+  [P, x18f, x18foto, `${escuela}/${x18a}/${x18foto}.jpg`]);
+ok('la ruta de la foto la da la base', (await uno(`select portal_ruta_foto($1, $2, $3) r`, [P, x18f, x18foto])).r === `${escuela}/${x18f}/${x18foto}.jpg`);
+await rechaza('otra persona no pide ruta para subir fotos', `select portal_ruta_foto($1, $2, $3)`, /la está haciendo/, [P2, x18f, x18foto]);
+await db.query(`select portal_foto($1, $2, $3, $4, 'http://x/f.jpg')`, [P, x18f, x18foto, `${escuela}/${x18f}/${x18foto}.jpg`]);
+await db.query(`select portal_foto($1, $2, $3, $4, 'http://x/f.jpg')`, [P, x18f, x18foto, `${escuela}/${x18f}/${x18foto}.jpg`]);
+ok('la foto queda registrada una sola vez (reenviar no duplica) y a nombre del portal',
+  (await uno(`select count(*)::int n, max(subida_por::text) quien from ot_fotos where ot_id = $1`, [x18f])).n === 1
+  && (await uno(`select max(subida_por::text) quien from ot_fotos where ot_id = $1`, [x18f])).quien === U.portE);
+ok('…y con el sector de la orden', (await uno(`select count(*)::int n from ot_fotos where ot_id = $1 and sector_id = $2`, [x18f, escuela])).n === 1);
+ok('con la foto, finaliza', (await uno(`select portal_finalizar($1, $2, '{}', null, null, null, null) as r`, [P, x18f])).r.estado === 'pendiente_validacion');
+
+// el portal no aprueba ni cancela: no tiene con qué
+await servicio();
+const x18fns = await q(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname like 'portal\\_%' and has_function_privilege('authenticated', p.oid, 'execute')`);
+ok('ninguna función del portal la puede llamar un usuario con sesión', x18fns.length === 0, JSON.stringify(x18fns));
+
+// registro
+await como(U.gerE);
+const x18log = await q(`select accion, nombre, ip from portal_acciones order by id`);
+ok('gerencia ve el registro con nombre e IP de cada acción',
+  x18log.filter((a) => a.accion === 'entrar').length === 3 && x18log.some((a) => a.accion === 'iniciar' && a.nombre === 'Juan Pérez' && a.ip === '7.7.7.7')
+  && x18log.some((a) => a.accion === 'foto') && x18log.filter((a) => a.accion === 'finalizar').length === 2, JSON.stringify(x18log));
+await como(U.opE);
+ok('un operario no ve el registro', (await q(`select * from portal_acciones`)).length === 0);
+await como(U.gerB);
+ok('gerencia de bapro no ve el registro de escuela', (await q(`select * from portal_acciones`)).length === 0);
+await como(U.gerE);
+ok('v_ordenes trae quién la hizo desde el portal', (await uno(`select portal_nombre from v_ordenes where id = $1`, [x18a])).portal_nombre === 'Juan Pérez');
+
+// cambiar la clave o apagar el portal corta los pases
+await como(U.adm);
+await db.query(`select set_portal_operarios($1, null, false)`, [U.portE]);
+await comoServicio();
+await rechaza('apagar el portal corta los pases abiertos', `select portal_ordenes($1)`, /venció/, [P]);
+const x18off = (await uno(`select portal_entrar($1, 'clave123', 'Juan Pérez', '5.5.5.5') as r`, [ubiE.qr_token])).r;
+ok('con el portal apagado no se entra', /apagado/.test(x18off.error ?? ''));
+await como(U.adm);
+await db.query(`select set_portal_operarios($1, 'nueva456', true)`, [U.portE]);
+await comoServicio();
+ok('la clave vieja deja de servir', !!(await uno(`select portal_entrar($1, 'clave123', 'Juan Pérez', '4.4.4.4') as r`, [ubiE.qr_token])).r.error);
+const P4 = (await uno(`select portal_entrar($1, 'nueva456', 'Juan Pérez', '4.4.4.4') as r`, [ubiE.qr_token])).r.pase;
+ok('la nueva sirve', !!P4 && (await uno(`select jsonb_array_length(portal_ordenes($1)) n`, [P4])).n > 0);
+await servicio();
+await db.query(`update portal_pases set expira = now() - interval '1 minute'`);
+await comoServicio();
+await rechaza('un pase vencido no sirve', `select portal_ordenes($1)`, /venció/, [P4]);
 await servicio();
 
 // ---------------------------------------------------------------- resultado
