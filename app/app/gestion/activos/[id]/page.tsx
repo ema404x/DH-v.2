@@ -11,8 +11,10 @@ import { AvisoBadge, EstadoActivoBadge, EstadoOTBadge } from '@/components/Estad
 import { ErrorVista, Esqueleto } from '@/components/Estados';
 import { fmtFecha } from '@/components/OTCard';
 import { BuscadorRemoto } from '@/components/gestion/BuscadorRemoto';
+import { Documentos } from '@/components/gestion/Documentos';
 import { QRImprimible } from '@/components/gestion/QRImprimible';
 import { actualizarActivo, obtenerExpediente } from '@/lib/gestion';
+import type { Documento } from '@/lib/obras';
 import { limpiarError } from '@/lib/errores';
 import { useCarga } from '@/lib/useCarga';
 import { useSesion } from '@/lib/sesion';
@@ -45,7 +47,7 @@ function Dato({ titulo, valor }: { titulo: string; valor: string | number | null
 // El historial lo escribe la base sola (triggers): acá solo se lee.
 export default function Expediente() {
   const { id } = useParams<{ id: string }>();
-  const { puedeValidar } = useSesion();
+  const { puedeValidar, sectorEfectivo } = useSesion();
   const carga = useCarga(() => obtenerExpediente(id), [id]);
   const [moviendo, setMoviendo] = useState(false);
   const [ocupado, setOcupado] = useState(false);
@@ -126,6 +128,20 @@ export default function Expediente() {
           <QRImprimible token={a.qr_token} titulo={a.nombre} subtitulo={a.ubicacion_nombre} />
         </section>
       </div>
+
+      {/* Documentos del activo (AssetDocumentos de la v1): manuales, garantías, planos. Bucket privado del sector. */}
+      <section className="tarjeta space-y-3">
+        <h2>Documentos</h2>
+        <p className="text-sm text-suave">Manuales, garantías, planos y cualquier archivo del equipo. Solo los ve tu sector.</p>
+        {sectorEfectivo && (
+          <Documentos sectorId={sectorEfectivo.id} carpeta={`activos/${a.id}`} documentos={(a as typeof a & { documentos?: Documento[] }).documentos ?? []}
+            puedeEditar={puedeValidar}
+            onCambio={async (docs) => {
+              await actualizarActivo(a.id, { documentos: docs });
+              carga.setDatos({ ...carga.datos!, activo: { ...a, documentos: docs } as typeof a });
+            }} />
+        )}
+      </section>
 
       {componentes.length > 0 && (
         <section className="tarjeta space-y-3">

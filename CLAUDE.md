@@ -574,6 +574,24 @@ direcciones**, zonas 8A/8B/10A, sin jefes (la planilla no los trae).
   (3263,3 con código y 2606,7 sin código); quedó un solo lugar con 2606,7. "Estados Unidos 1228" está en las 3 comunas con
   códigos distintos: quedaron 3 lugares.
 
+## Noche del 19/10/2026 (Emanuel dejó la PC trabajando)
+- **Portal sin señal** (`lib/portal-cola.ts`, pruebas `pruebas/portal-cola.test.ts` 11/11 con Deno + fake-indexeddb:
+  `npx deno test -A --no-check --unstable-sloppy-imports --node-modules-dir=none pruebas/portal-cola.test.ts` desde app/).
+  Cola propia en IndexedDB `dh1-portal`; con señal va directo, sin señal (o con algo en espera de esa orden) queda en la
+  cola y se envía en orden al volver la señal / al volver a la app / cada 30 s. Rechazo de la base → queda con el motivo
+  (probar de nuevo / descartar) y frena solo esa orden. "Ya estaba" (iniciar/finalizar repetido) no es error. Pase en
+  localStorage (12 h). Lista guardada para abrir sin señal; `/portal` en el precache del service worker.
+  **No probado de punta a punta** (hace falta una orden en un lugar y la clave del portal, que pone Emanuel).
+- **Inventario** al día: `INVENTARIO-v1-v2.md` (19/10). **Certificados de octubre**: `ESPEC-certificados-octubre.md`.
+  En octubre la v1 solo cambió el checklist "Limpieza de Campanas", que vive dentro de la **cadena de firmas
+  intermedias** (de septiembre, no está en la v2). En los datos reales: 2 de 283 certificados la usaron y ninguno quedó
+  "pendiente de firmas" → **decisión de Emanuel** si se construye (fase 18, L, con SQL).
+- **QRs en cantidad** (`lib/pdfQRs.ts`, `components/gestion/ExportarQRs.tsx`, botón en Ubicaciones): PDF A4 como la v1,
+  por comuna y jefe; "todos los jefes" = un PDF con salto de página por jefe (la v1 bajaba un ZIP). 232 QRs ≈ 2 MB.
+  Ubicaciones muestra la dirección del edificio de los lugares importados.
+- **Documentos en la ficha del activo** (reusa `components/gestion/Documentos.tsx`, bucket `documentos`,
+  carpeta `activos/<id>`). Solo `tsc`: la v2 todavía no tiene activos para probarlo en vivo.
+
 ## Migración desde Base44: simulacro real (19/10/2026)
 Primer simulacro contra la v1 de verdad (app `69bc7d2a6f0e7ed160c90003`), con el token personal de Emanuel leído de un
 archivo suyo fuera del repo (nunca se mostró ni se copió). **No se escribió nada en Supabase.**

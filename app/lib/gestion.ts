@@ -1,5 +1,6 @@
 import { supabase } from './supabase/client';
 import { exigir } from './errores';
+import type { Documento } from './obras';
 import type {
   Activo, Criticidad, EstadoActivo, EstadoOT, HistorialActivo, OT, Perfil, Plantilla, Prioridad,
   ResultadoBusqueda, Rol, TareaChecklist, TipoActivo, TipoOT, Ubicacion,
@@ -184,7 +185,7 @@ export async function crearActivo(a: DatosActivo): Promise<string> {
 
 export async function actualizarActivo(
   id: string,
-  cambios: Partial<{ estado: EstadoActivo; ubicacion_id: string | null; proximo_mantenimiento: string | null; notas: string | null }>,
+  cambios: Partial<{ estado: EstadoActivo; ubicacion_id: string | null; proximo_mantenimiento: string | null; notas: string | null; documentos: Documento[] }>,
 ): Promise<void> {
   exigir(await supabase().from('activos').update(cambios).eq('id', id).select('id').single());
 }
