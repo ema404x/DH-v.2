@@ -561,13 +561,13 @@ datos y cálculos en `lib/dashboard.ts` (sin SQL nuevo).
   (las dos vistas, los dos temas, Devolver con motivo). Falta: la vista del jefe con un usuario jefe real.
 
 ## Directorio real de escuelas (19/10/2026)
-Importada la planilla de Emanuel  (Documentos) en escuela: **232 lugares, 104
+Importada la planilla de Emanuel `LISTADO ESCUELAS POR COMUNA 2023-27.xlsx` (Documentos) en escuela: **232 lugares, 104
 direcciones**, zonas 8A/8B/10A, sin jefes (la planilla no los trae).
--  (): formato jerárquico de esa planilla (fila de edificio con dirección/m²/inspector y las
+- `lib/excel.ts` (`leerPorComuna`): formato jerárquico de esa planilla (fila de edificio con dirección/m²/inspector y las
   escuelas debajo con su ubicación técnica; una hoja por comuna, "COMUNA 8A1" → 8A; las hojas sin encabezado se ignoran).
   Los m² del edificio van a la primera escuela.
-- **Fase 17** (, pruebas 521/521, sección 19; **corrida el 19/10/2026** con permiso
-  de Emanuel, hash 61084525… verificado):  empareja por ubicación técnica (antes solo por nombre y
+- **Fase 17** (`dh1-v2-fase17-directorio-por-codigo.sql`, pruebas 521/521, sección 19; **corrida el 19/10/2026** con permiso
+  de Emanuel, hash 61084525… verificado): `importar_directorio` empareja por ubicación técnica (antes solo por nombre y
   los homónimos de edificios distintos se pisaban). Reimportar la planilla corrigió los 7 lugares que faltaban.
 - Corregidos a mano 2 lugares que habían quedado con los m² de otro edificio (CENS N° 77 Corrales, CAIYJ Club Lola Mora).
 - Para revisar con Emanuel: la planilla trae "EEM N° 01/20° Bib. Congreso" dos veces en Zuviría 6550 con m² distintos
