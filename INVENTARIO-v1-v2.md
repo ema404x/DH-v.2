@@ -1,197 +1,154 @@
 # Inventario v1 (Base44) contra v2 (Supabase): qué falta para igualar
 
-Relevado el 7/10/2026 leyendo el código de las dos versiones: las 62 funciones de `base44/functions`, las 44 pantallas
-de `src/pages` y sus componentes, contra el SQL y la app de la v2. Cada fila se verificó en el código de la v2,
-no por nombre.
+**Relevado el 19/10/2026.** Reemplaza al del 7/10/2026.
+Fuentes: clon de la v1 del 14/10/2026 (`src/App.jsx`, 47 pantallas de `src/pages`, sus componentes y las 104 funciones de
+`base44/functions`, contando cuáles invoca de verdad el frontend) contra la v2 (`app/app/**/page.tsx`, `components/`,
+`lib/`, `supabase/functions/` y los `dh1-v2-*.sql` hasta la fase 17). Cada fila se miró en el código, no por nombre.
 
-Estados: **igual o mejor** · **parcial** · **falta** · **no aplica** (decisión cerrada de `CLAUDE.md` §2, o
-código muerto en la v1: ninguna pantalla lo usaba).
-Esfuerzo: **S** = horas · **M** = un día · **L** = varios días.
+Estados:
+- **Igual**: hecho igual (o mejor) que la v1.
+- **Distinto a propósito**: decisión de `CLAUDE.md`; se dice por qué. No es faltante.
+- **Parcial**: está, falta lo que se indica.
+- **Falta**: no está en la v2.
+- **No aplica**: código muerto en la v1 (nada lo monta ni lo invoca) o fuera de alcance por decisión cerrada.
 
-## Resumen
+Esfuerzo: **S** = horas · **M** = un día · **L** = varios días. "SQL" = necesita archivo de fase nuevo (y tu OK para correrlo).
 
-La base de la operación ya está igual o mejor:
-- órdenes con su máquina de estados y el trabajo sin señal;
-- QR, emergencias, rutinas, calefacción e inspecciones con IA;
-- pendientes SAP, información general, mapa y calendario;
-- empleados, fichaje y tablets;
-- certificación con sus reglas en la base, abonos del mes y solicitudes;
-- cobro de obras por ciclo, obras, presupuestos, pañol e informes;
-- riesgos, auditoría, alertas, reportes, sectores y usuarios.
+## Qué cambió desde el 7/10
 
-Lo que falta se concentra en cuatro frentes:
-1. **Carga de contratos y certificados**: la carga desde el PDF del ADA con IA (en curso), el PDF y el Excel del
-   certificado, y una lista de todos los certificados.
-2. **Órdenes de trabajo después de creadas**: editar, reasignar, borrar, filtrar el listado y que el operario anote
-   materiales usados y faltantes.
-3. **Avisos fuera de la app**: alertas y resumen semanal por mail.
-4. **Detalles de campo**: dictar la descripción, que el jefe complete directo y la "futura obra".
+Cerrado desde el inventario anterior (ya no es faltante):
+- Órdenes de trabajo como la v1 (`app/gestion/ots/page.tsx`, `components/ordenes/*`, `lib/tablero.ts`): Kanban/Grilla,
+  filtros avanzados, editar/reasignar/borrar desde el panel, guardar como plantilla, historial por establecimiento con
+  totales, modo campo, cancelar/rechazar con motivo, QR, PDF (`lib/pdfOT.ts`), firma de conformidad, Futura Obra (fase 15).
+- Crear OT como la v1 (`app/gestion/ots/nueva`): dictado por voz, fotos de referencia y materiales al crear, 5 Reglas de Oro.
+- Mis Órdenes como `PortalOperarioApp` (`app/mis-ots`, `components/operario/ReporteForm.tsx`): materiales usados y faltantes.
+- Certificados como la v1 (fase 14): lista con filtros, editor, vista previa, PDF (`lib/pdfCertificado.ts`), carga del
+  ADA con IA (`UploadADA.tsx`, función `leer-contrato-pdf`), tipo "Informe / Certificado", generación masiva desde
+  varios PDF, firma del jefe de sitio al emitir (`FirmaJefeSitioModal.tsx`), abonos maestros, automáticos.
+- Portal de operarios sin usuario (`/portal`, fase 16) = `PortalOperario.jsx` + `EjecutarOTEnPortal.jsx`.
+- Directorio jerárquico por comuna (`leerPorComuna`, fase 17) = `importarEscuelasJerarquico`.
+- Tablero de inicio estilo Apple (`app/gestion/page.tsx`).
 
-## Orden propuesto (por uso diario)
+Sacado de la lista por ser código muerto en la v1 (verificado: ninguna pantalla lo invoca): `exportCertificado`
+(certificado en Excel), `exportOTsPDF` (exportar el listado de OTs), `transcribirAudio`, `archivarOTsCompletadas`,
+`heredarOTsPorUbicacion`, `reasignarJefeSitio`, `eliminarJefeSitio`, `notificarAnuncioForo`, `generateDigitalSignature`.
 
-| # | Qué | Esfuerzo | Necesita |
-|---|---|---|---|
-| 1 | **Cargar el ADA / orden de compra desde el PDF con IA** (Gemini gratis), con control de la suma y corrección | M | **En curso**: hecho en código; falta desplegar la función (tu OK) y probarla con un ADA real |
-| 2 | Editar, reasignar y borrar una OT ya creada (la base ya lo permite; falta la pantalla) | M | — |
-| 3 | Filtros del listado de OTs (jefe, operario, prioridad, tipo, fechas, solo vencidas) y exportarlo | M | — |
-| 4 | El operario anota materiales usados y faltantes desde Mis órdenes, también sin señal | M | — |
-| 5 | PDF y Excel del certificado (hoy solo "imprimir" del navegador) | M | — |
-| 6 | Lista de todos los certificados, filtrable por mes y por comuna | S | — |
-| 7 | Abonos del mes automáticos el último día hábil (con feriados) | S | SQL nuevo → tu OK |
-| 8 | Dictar por voz la descripción de la OT (el código ya existe en inspecciones) | S | — |
-| 9 | El jefe completa una OT directo, sin pasar por el operario | S | SQL nuevo → tu OK |
-| 10 | Importar la planilla jerárquica de jefes por comuna (las escuelas heredan dirección y jefe) | S | — |
-| 11 | Alertas y resumen semanal por mail | M | **Decisión**: proveedor de correo (Resend gratis o SMTP) |
-| 12 | Futura obra: crear una OT como pendiente de obra, o convertirla | M | **Decisión**: se sacó el estado `obra`; ver cómo se usaba |
-| 13 | Planificación anual de informes con su importador | M | **Decisión**: la planilla de la v1 tenía columnas atadas a 2025-2026 |
-| 14 | 2FA con el MFA nativo de Supabase | S | — |
-| 15 | Carga en lote: varios PDF de ADA de una vez | M | Después del 1 |
-
-Además, de menor peso (S cada uno):
-- **Certificados:**
-  - pedir la firma dibujada del jefe de sitio al emitir;
-  - vista previa del certificado dentro de la solicitud.
-- **Obras:**
-  - en la importación, listar las obras de la base que no vienen en la planilla;
-  - borrado múltiple.
-- **Órdenes de trabajo:**
-  - guardar una OT como plantilla;
-  - historial por establecimiento con totales;
-  - exportar el listado de OTs;
-  - fotos y materiales al crear la OT.
-- **Sincronización de jefes:** propagar el cambio de jefe a los pendientes y a la calefacción ya cargados.
-- **Tablero y reportes:**
-  - filtros del tablero;
-  - reporte de plantel y de stock contra mínimo;
-  - preset "última semana" en reportes.
-- **Alertas:** activar o desactivar cada tipo de alerta.
-- **Foro:** contador del foro en el menú.
-- **Administración:**
-  - firmas de jefes cargadas por el admin;
-  - chequeo de salud (empleados sin usuario, duplicados);
-  - registro de uso de la app.
-- **Descargas en PDF:**
-  - del informe de inspección;
-  - de pendientes.
-- **Mapa:** pestaña de obras en el mapa.
-
-## Decisiones que te tocan
-- **Certificado tipo "Informe" de la v1** (informe de avance con acumulados): ¿se sigue usando? Si sí, hay que definir
-  cómo entra a la v2, porque un certificado nuevo arrastra el acumulado de los anteriores del mismo contrato.
-- **Kanban de OTs**: estaba pendiente de decisión.
-- **Mapa de jefes, importar la cobertura por jefe**: estaba pendiente de decisión.
-- **Proveedor de correo** (para el punto 11).
-
-## No aplica (no se iguala, a propósito)
-- **Facturación y finanzas, cotizaciones**: decisión cerrada, DH1 certifica y controla; no factura ni cobra.
-- **Fichar, ejecutar OT o portal sin login**: decisión cerrada, todo con login.
-- **QR propio de cada OT**: un solo formato de QR, para ubicaciones y activos.
-- **Presupuesto PCP/PAPORC, preciario del Ministerio, firma digital SHA-256, `transcribirAudio`,
-  `importarPendientesSAPMultiple`, varias utilidades de ubicaciones**: código muerto en la v1, ninguna pantalla los usaba.
-- **Importador general con IA a cualquier tabla**: escribía como servicio en cualquier tabla. La v2 tiene un
-  importador por módulo.
-- **Permisos configurables desde una pantalla**: en la v2 los permisos los aplica la base (RLS y triggers). Una
-  pantalla que no los cambie de verdad mentiría; hacerlo bien es L.
-- **Cifrado, backups, rate limit y CSRF propios**: los resuelve Supabase. En la v1 eran de mentira.
-  Conviene confirmar el plan de Supabase por los backups: el gratis no trae recuperación a un punto en el tiempo.
+Nuevo en la v1 (o no relevado el 7/10): **cadena de firmas intermedias de certificados**, **Revisión BAPRO por enlace**,
+**importador de activos con asistente** (Excel/PDF/BAPRO, con historial y deshacer), **exportar QRs por jefe (PDF/ZIP)**.
 
 ---
 
-## Detalle por área
+## Tabla por pantalla de la v1
+
+### Órdenes de trabajo y campo
+| Pantalla / módulo v1 | v2 | Estado | Detalle |
+|---|---|---|---|
+| `WorkOrders.jsx` (`/ordenes`) + `components/workorders/*` | `app/gestion/ots/page.tsx`, `components/ordenes/*` | Igual | Kanban, grilla, `AdvancedFilters`, `HistorialEstablecimiento`, `ModosCampo`, plantillas, QR, cancelar. Diferencias a sabiendas (CLAUDE.md "Aspecto y OT"): "Completar" solo desde Obra; responsable de la lista de usuarios; archivadas calculadas; sin tiempo real (recarga 30 s) |
+| `WorkOrderDetailPanel.jsx` | `components/ordenes/DetallePanel.tsx` | Igual | Autoguardado, reasignar, ubicación, borrar (gerencia), PDF, plantilla, firma, fotos, materiales, horas |
+| `CrearOT.jsx` (`/crear-ot`) | `app/gestion/ots/nueva/page.tsx` | Igual | La plantilla además copia el checklist |
+| Estado `obra` / Futura Obra | fase 15, `convertir_ot_en_obra` | Igual | Arrastrar a Obra también crea el pendiente |
+| `PortalOperarioApp.jsx` (`/mis-ots`) | `app/mis-ots/page.tsx` | Igual | Sobre la cola sin señal de la v2; suma checklist y motivo obligatorios |
+| `PortalOperario.jsx` + `EjecutarOTEnPortal.jsx` (`/portal-operario`) | `app/portal/page.tsx`, `lib/portal.ts`, fase 16 | Parcial | Falta trabajar **sin señal** en el portal (la v1 tenía cola; CLAUDE.md lo anota pendiente). Distinto a propósito: la lista se ve recién con la clave; checklist en el portal |
+| `EjecutarOrdenPublica.jsx`, `EjecutarOTSimple.jsx`, `OrdenTrabajoPublica.jsx` (públicas) | `/portal` (fase 16) y `/q` | Distinto a propósito | Resuelto con la fase 16: un solo portal con clave por sector y pase; un solo QR (§2.5) |
+| `transicionEstadoOT`, `actualizarOT`, `eliminarOT` | trigger `validar_transicion_ot`, `lib/tablero.ts` | Igual | Reglas en la base |
+| Crear OT el operario desde el campo | — | Falta (decisión) | CLAUDE.md §4: decisión de negocio pendiente; hoy crean gerencia y jefe de sitio |
+| `Fichar.jsx`, `FicharUbicacion.jsx`, `publicFichar` (sin login) | fichaje en `/mis-ots`, `/cuadrilla` | Distinto a propósito | Tanda 2: fichar con usuario; quien no tiene lo ficha la tablet o el jefe |
+| `PortalTablet.jsx` (`/tablet`, código de activación) | usuario tablet + `/cuadrilla` | Distinto a propósito | Tablet = usuario propio atado a un jefe. Falta probarla en vivo |
+| `Emergencias.jsx` + `detectarPatronesEmergencias` | `app/gestion/emergencias`, `/emergencia`, alerta "emergencias repetidas" | Igual | Emergencia + OT en una transacción; aviso en tiempo real |
+| `Rutinas.jsx` + `GenerarOTsJefes`, `procesarRutinas`, `sincronizarEdificiosRutinas` | `app/gestion/rutinas/page.tsx` | Igual | Pestañas jefes/general/generar/catálogo/asignación/sincronizar; "Generar las N órdenes". Sin "Edificio" a propósito. Punto abierto de CLAUDE.md: marcar a mano la única rutina no cierra la OT |
+| `Calendario.jsx` | `app/gestion/calendario` | Igual | Con rutinas, informes y devoluciones |
+| `InspeccionColegio.jsx` + `generarInformeInspeccion` | `app/gestion/inspecciones`, función `informe-inspeccion` | Parcial | Informe con IA y plantilla de respaldo OK. PDF solo por "Imprimir o guardar PDF" del navegador; la v1 (`InformeViewer`) lo descarga directo (S) |
+| `Calefaccion.jsx` + `importarCalefaccion` | `app/gestion/calefaccion` | Igual | Por período. Falta probar con la planilla real |
+| `InformacionGeneral.jsx` (`DirectorioJerarquico`, `DireccionesManager`, `importarDireccionesJefes`) | `app/gestion/informacion`, fase 17 | Igual | Directorio real importado (232 lugares). Faltan cargar los jefes (dato, no código) |
+| `SincronizarModulos` → `sincronizarPendientes` | trigger `propagar_direccion` (fase 6) | Parcial | El cambio de jefe de una dirección llega a `ubicaciones`, pero `pendientes` y `calefaccion` guardan su propio `jefe_sitio_id` y no se actualizan (S, SQL) |
+| `Assets.jsx` pestaña Pendientes SAP (`PendientesTab`, `importarPendientesSAP`) | `app/gestion/pendientes` | Parcial | Igual salvo `ExportarPendientesPDF`: hoy solo CSV (S) |
+
+### Activos
+| Pantalla / módulo v1 | v2 | Estado | Detalle |
+|---|---|---|---|
+| `Assets.jsx` pestaña Catálogo (`ActivosTab`, `AssetFormDialog`, `AssetQRModal`) | `app/gestion/activos/page.tsx` | Parcial | Alta, padre, QR OK. Falta **exportar** el catálogo a Excel/PDF (`exportActivosExcel.js`) |
+| `ImportarActivosWizard` + `ImportarActivosModal` (`importarActivosExcel`, `importarActivosPDF`, `importarActivosBapro`, `HistorialImportaciones` + `rollbackImportacion`) | — | Falta | Importar activos desde Excel (con plantilla), PDF de inventario con IA, o formato BAPRO; con historial y deshacer el lote (M–L, SQL para el lote/deshacer) |
+| `ActivoFicha.jsx` (`/activos/:id`: `AssetDocumentos`, `AssetJerarquia`, `AssetOTs`, `AssetTimeline`) | `app/gestion/activos/[id]/page.tsx` | Parcial | Ficha, estado, mover, componentes, órdenes e historial OK. Faltan los **documentos** del activo en pantalla (la columna `activos.documentos` ya existe en `dh1-v2-fundacion.sql`; reusar `components/gestion/Documentos.tsx`) (S) |
+| Pestaña Revisión (`RevisionBaproPanel`, `generarLinkBapro`) + `RevisionBapro.jsx` (`/revision-bapro/:token`, `obtenerActivosParaRevision`, `registrarVistoBapro`) | — | Falta | Enlace con vencimiento para que el cliente BAPRO revise los activos de una sede o todas, los marque "visto" y vea las OTs del mes. Es acceso sin usuario: mismo criterio que la fase 16 (función con `service_role` y token con hash). M, SQL, **decisión** (reabre "todo con login" para esto) |
+| Pestaña Sincronización (`SincronizacionPanel`, `sincronizarUbicaciones`) | — | No aplica | Reconcilia `LocationData` ↔ `Edificio`; en la v2 no existe Edificio y las ubicaciones son una sola tabla |
+| `guardarAsset`, `getActivosSector` | RLS + `exigir_rol` | Igual | — |
 
 ### Certificación, obras, presupuestos
-| Capacidad | v1 | v2 | Esfuerzo | Qué falta |
-|---|---|---|---|---|
-| Cargar ADA desde PDF con IA | UploadADA, extractADA | **en curso** | M | Ver punto 1 |
-| Corregir con IA los ítems mal leídos | correctADAItems | **en curso** | S | Incluido en el punto 1 |
-| Generación masiva desde varios PDF | GeneracionMasiva | falta | M | Carga en lote |
-| Contrato manual con ítems, anticipo, fondo de reparo | AbonoManualForm, CertificadoEditor | mejor | — | — |
-| Medición del período, acumulados, bloqueo de sobre-certificación | CertificadoEditor | mejor | — | — |
-| Abonos: maestro y lote del mes | AbonoMaestroPanel, generarLoteAbonos | mejor | — | — |
-| Certificados automáticos el último día hábil | generateMonthlyCertificates | parcial | S | Programarlo (hoy es un botón) |
-| Certificado en PDF | exportCertificadoPDF | parcial | M | Hoy se imprime desde el navegador |
-| Certificado en Excel | exportCertificado | falta | S | — |
-| Lista de certificados con filtro por mes y comuna | Certificados | parcial | S | Hoy se ven contrato por contrato |
-| Certificado tipo "Informe" | UploadADA (informe) | falta | S | Decisión |
-| Firma del jefe de sitio al emitir | FirmaJefeSitioModal | parcial | S | Hoy la firma es solo al aprobar |
-| Firma del gerente al aprobar | FirmaGerenteModal | igual | — | — |
-| Solicitudes de certificado | AprobacionCertificados | mejor | — | — |
-| Cobro de obras por ciclo | CertificacionObras | mejor | — | — |
-| Importar la planilla MTOM / obras SAP | ImportarObrasExcel | igual o mejor | — | — |
-| Hoja por comuna | ExportarComunaPDF | igual | — | — |
-| Obras: lista, ficha, documentos | Projects | mejor | — | — |
-| Auditoría de la sincronización con la planilla | auditarObrasSincronizacion | parcial | S | Listar las obras que no vienen en la planilla |
-| Borrar obras en lote | eliminarTodasObras | parcial | S | Selección múltiple |
-| Proveedores | Clients | igual | — | — |
-| Presupuestos (planillas con estado) | Presupuestos | igual o mejor | — | — |
-| Pañol / inventario | Inventory | igual o mejor | — | — |
+| Pantalla / módulo v1 | v2 | Estado | Detalle |
+|---|---|---|---|
+| `Certificados.jsx` (lista, editor, vista previa, PDF, ADA con IA, masiva, abonos) | `app/gestion/certificacion/page.tsx`, `components/certificados/*` | Igual | Fase 14. Diferencias a sabiendas (CLAUDE.md): N° lo pone la base; monto = suma de ítems; anticipo/fondo sobre el período; emitidos no se borran (`eliminarCertificado` solo borradores) |
+| `CadenaFirmasPanel` (en `CertificadoEditor`), `FirmaIntermediaModal` + `TipsFirmaPanel`, `AuditoriaFirmasModal`; funciones `emitirCertificado` (estado `pendiente_firmas`) y `firmarCertificadoIntermedio` | — | Falta | Antes de emitir se arma una cadena de firmantes; el certificado queda "pendiente de firmas" y cada uno firma (o rechaza con motivo) en orden; el último lo deja emitido. Más un modal de auditoría de firmas. Nada de esto en `dh1-v2-fase14-certificados-v1.sql` (M–L, SQL: estado nuevo, tabla de firmantes, función de firma con las reglas de §2.8) |
+| `CertificadosAutomatizados` + `generateMonthlyCertificates` | `CertificadosAutomatizados.tsx`, `certificados_automaticos()` (fase 14) | Parcial | Lógica hecha (último día hábil con feriados). **No está programado**: falta correr una vez `programar_certificados_automaticos()` (pg_cron) — decisión de CLAUDE.md: "después de probar" (S, SQL de una línea con tu OK) |
+| `AprobacionCertificados.jsx` (`gestionarSolicitudesCert`, `SolicitudDetalle`) | `app/gestion/solicitudes` | Igual | Aprobar con certificado vinculado pide la firma del gerente |
+| `CertificacionObras.jsx` (`gestionarObrasCertificacion`, `ExportarComunaPDF`) | `app/gestion/cobros` | Igual | Cobro por ciclo, hoja por comuna |
+| `Projects.jsx` (`/proyectos`) + `importarObrasExcel` | `app/gestion/obras` | Parcial | Falta `AuditoriaSincronizacion` (`auditarObrasSincronizacion`: obras de la base que no vienen en la planilla) y el borrado de todas/varias (`eliminarTodasObras`); hoy se borra de a una (S) |
+| `Clients.jsx` | `app/gestion/proveedores` | Igual | — |
+| `Presupuestos.jsx` (`/presupuestos-obra`) | `app/gestion/presupuestos` | Igual | Repositorio con estado. Motor PCP/PAPORC, plan de trabajos, preciario: no copiados a propósito (código muerto, tanda 3) |
+| `Quotes.jsx`, `Invoices.jsx`, `Finanzas.jsx` | — | No aplica | Decisión cerrada: DH1 no factura ni cobra; cotizaciones sacadas como código muerto (tanda 3) |
+| `Inventory.jsx` (`/inventario`) | `app/gestion/panol`, `prestamos`, `requerimientos` | Igual | Préstamos es nuevo en la v2 |
 
-### Operación y campo
-| Capacidad | v1 | v2 | Esfuerzo | Qué falta |
-|---|---|---|---|---|
-| Máquina de estados de OT | transicionEstadoOT | igual o mejor | — | — |
-| El jefe completa directo | transicionEstadoOT | falta | S | SQL |
-| Futura obra | CrearOT, WorkOrderDetailPanel | falta | M | Decisión |
-| Crear OT (plantilla, checklist, fotos requeridas) | CrearOT | igual o mejor | — | — |
-| Dictar la descripción | CrearOT | falta | S | — |
-| Fotos y materiales al crear | CrearOT | parcial | S | Hoy se cargan después |
-| Editar, reasignar, borrar OT | WorkOrderDetailPanel | falta | M | Pantalla |
-| Guardar OT como plantilla | WorkOrderDetailPanel | falta | S | — |
-| Firma de conformidad dibujada en la OT | WorkOrderSignature | parcial | M | Hoy hay renglones para firmar en papel |
-| Filtros del listado de OTs | AdvancedFilters | parcial | M | Hoy solo estado, texto y lugar |
-| Kanban | KanbanBoard | falta | M | Decisión |
-| Exportar OTs | exportOTsPDF | parcial | S | Hoy se imprime de a una |
-| Historial por establecimiento | HistorialEstablecimiento | parcial | S | Totales |
-| Portal del operario, sin señal | PortalOperarioApp | mejor | — | — |
-| Materiales usados y faltantes desde el portal | ReporteForm | parcial | M | Pantalla en Mis órdenes |
-| QR de lugar o activo | 8 formatos | mejor | — | Un solo formato |
-| Tablet de cuadrilla | PortalTablet | igual o mejor | — | Falta probarla en vivo |
-| Fichaje con GPS y sin señal | Fichar | igual o mejor | — | — |
-| Empleados y vínculo con usuario | Employees, vincularEmpleado | mejor | — | — |
-| Emergencias y patrones | Emergencias | mejor | — | — |
-| Rutinas | Rutinas | igual o mejor | — | — |
-| Calefacción | Calefaccion | igual o mejor | — | Probar con la planilla real |
-| Inspecciones con informe IA | InspeccionColegio | igual o mejor | — | — |
-| Informe de inspección en PDF | InformeViewer | parcial | S | Descarga directa |
-| Pendientes SAP | PendientesTab | igual o mejor | — | — |
-| Pendientes en PDF | ExportarPendientesPDF | parcial | S | Hoy solo CSV |
-| Propagar un cambio de jefe a pendientes y calefacción | sincronizarPendientes | parcial | S | — |
-| Información general e importación del directorio | InformacionGeneral | igual o mejor | — | — |
-| Importación jerárquica por comuna | importarEscuelasJerarquico | parcial | S | Arrastrar dirección y jefe hacia abajo |
-| Mapa, mapa de jefes, fichajes y OTs en el mapa | Mapa, MapaJefes | igual o mejor | — | — |
-| Obras en el mapa | MapaProyectosOTs | falta | M | — |
-| Importar la cobertura de jefes | ImportarMapaJefes | falta | S | Decisión |
-| Calendario | Calendario | mejor | — | — |
-| Activos y expediente | Assets | mejor | — | — |
+### Gente y mapa
+| Pantalla / módulo v1 | v2 | Estado | Detalle |
+|---|---|---|---|
+| `Employees.jsx` (`vincularEmpleado`, `revincularEmpleado`, `cambiarEmailEmpleado`, `sincronizarEmpleados`) | `app/gestion/empleados` | Igual | Enganche por correo automático; datos reservados aparte |
+| `Mapa.jsx` pestañas lugares / fichajes / asignaciones | `app/gestion/mapa` (Lugares, Fichajes, Órdenes) | Parcial | Falta `MapaProyectosOTs` (obras en el mapa), `MapaOTsCompletadas` y `AsistenciasPanel` → exportar asistencias a Excel (M) |
+| `ExportarQRsDialog` (en Mapa: QRs de ubicaciones por jefe en PDF, o todos en ZIP; modo fichaje) | `components/gestion/QRImprimible.tsx` (de a uno) | Parcial | Falta la impresión masiva de QRs por jefe y la descarga ZIP (S–M, sin SQL) |
+| `MapaJefes.jsx` + `ImportarMapaJefes` | colorear por jefe/zona en `app/gestion/mapa` | Parcial (decisión) | Importar la cobertura por jefe: pendiente de decisión (CLAUDE.md tanda 6) |
+| `geocodificarColegios` | `lib/geocodificar.ts` (Nominatim desde el navegador) | Distinto a propósito | Tanda 2 |
 
-### Control y administración
-| Capacidad | v1 | v2 | Esfuerzo | Qué falta |
+### Control, reportes y administración
+| Pantalla / módulo v1 | v2 | Estado | Detalle |
+|---|---|---|---|
+| `Dashboard.jsx` (`getDashboardMetrics`, `DashboardFilters`) | `app/gestion/page.tsx` (estilo Apple) | Distinto a propósito | Única pantalla que no copia la v1, a pedido de Emanuel (8/10). Falta la vista del jefe con un usuario jefe real |
+| `Reportes.jsx` (`getReportesGerenciales`, `resumenSemanal`): Operaciones, Personal, Financiero, Inventario, Pendientes, Semanal | `app/gestion/reportes` (`reporte_operacion`) | Parcial | Operaciones, horas, materiales, emergencias, ranking OK. Falta **a verificar** el detalle de las pestañas Personal (plantel), Inventario (stock contra mínimo) y Semanal; "Financiero" no aplica (no factura) (M, posible SQL) |
+| `ConfigAlertas.jsx` (`/alertas`) + `checkAlertas` | `app/gestion/alertas` (`v_alertas`, umbrales por sector) | Parcial | Falta apagar/prender cada tipo (`activo` por tipo en la v1) (S, sin SQL: va en `sectores.config`). Mails: falta (proveedor de correo, decisión) |
+| `Automatizaciones.jsx` (historial y estadísticas de `AlertaLog`, `AutomationControl`) | alertas calculadas al momento | Distinto a propósito | Tanda 5: `AlertaLog` y `AutomationControl` reemplazados (no hacían nada / re-alertaban) |
+| `Auditoria.jsx` + `logAudit` | `app/gestion/auditoria`, `auditar()` | Igual | — |
+| `AuditSystemCheck` (`auditarSistema`) | — | Falta | Chequeo de salud: empleados sin usuario, duplicados, registros huérfanos (S) |
+| `Informes.jsx`, `CalendarioInformes.jsx` | `app/gestion/informes`, calendario | Igual | — |
+| `PlanificacionTab` (`importarInformesPlaneacion`, `InformePlaneacion`) | — | Falta (decisión) | Columnas atadas a 2025/2026; pendiente de decisión (CLAUDE.md tanda 5) |
+| `ControlRiesgo.jsx` | `app/gestion/riesgos` | Igual | — |
+| `Foro.jsx` + `ForoNotificacionesBell` | `app/gestion/foro` | Parcial | Sin encuestas/reacciones/menciones a propósito. Falta el contador de "nuevos" en el menú (`Sidebar.tsx` no lo muestra) (S) |
+| `Sectores.jsx` (`observarSector`, `cambiarSectorActivo`) | `app/gestion/sectores`, `cambiar_sector_activo` | Igual | — |
+| `Permisos.jsx` (editor rol × módulo, `forzarSincronizacion`, `saveAccessConfig`) | `app/gestion/usuarios` | Distinto a propósito | Permisos en la base; un editor en pantalla mentiría (tanda 6) |
+| `Seguridad.jsx` (sesiones, backups cifrados, `TwoFactorSetup`) | — | Distinto a propósito / Parcial | Centro de Seguridad falso: no se copia. Lo único real era el TOTP de `twoFactorAuth`; con Supabase sería MFA nativo (S). **A verificar** si la v1 lo exigía al entrar |
+| `ImportarDatos.jsx` (importador genérico, `smartImport*`, `AliceImportAssistant`) | importadores por módulo | Distinto a propósito | Escribía como servicio en cualquier tabla (tanda 6) |
+| `GestorFirmasJefes` (dentro de ImportarDatos) | firma propia en `app/gestion/perfil` | Parcial | Cada uno carga su firma; falta que el admin cargue la de los jefes (S, a verificar si la RLS de `perfiles` lo deja) |
+| `AsignadorJefesEscuelas` (dentro de ImportarDatos) | jefe por dirección en `app/gestion/informacion` | Igual | — |
+| `Tutorial.jsx` (`TutorialProgress`) | `app/gestion/ayuda` | Parcial | Sin progreso ni guía paso a paso (S) |
+| `ChatbotSoporte`, Alice, `base44/agents/soporte_app` | — | Distinto a propósito | Dejado afuera (tanda 6); se podría con Gemini |
+| `useAppUsageTracker` (`AppUsageLog`) | — | Distinto a propósito | No copiado (tanda 5) |
+| `OAuthConsent.jsx` | — | No aplica | Plomería de la plataforma Base44 (servidor MCP); no tiene ruta en `App.jsx` |
+| Buscador global (Ctrl+K) | `BuscadorGlobal.tsx` | Nuevo en v2 | — |
+| Sugerencias | `app/gestion/sugerencias` | Nuevo en v2 | Reemplaza el mail a una casilla personal |
+
+---
+
+## Lo que falta, en orden de valor
+
+| # | Qué | v1 | Esfuerzo | SQL |
 |---|---|---|---|---|
-| Auditoría automática e inmutable | logAudit | mejor | — | — |
-| Pantalla de auditoría | Auditoria | igual o mejor | — | — |
-| Chequeo de salud del sistema | auditarSistema | falta | S | — |
-| Alertas en vivo y contador en el menú | checkAlertas | mejor | — | — |
-| Umbrales de alertas | ConfigAlertas | parcial | S | Activar o desactivar por tipo |
-| Alertas por mail | checkAlertas | falta | M | Proveedor de correo |
-| Historial de alertas | AlertaLog | falta | S | — |
-| Resumen semanal en pantalla | resumenSemanal | parcial | S | Preset en reportes |
-| Resumen semanal por mail | resumenSemanal | falta | M | Proveedor de correo |
-| Reportes operativos | Reportes | mejor | — | — |
-| Reporte de plantel y de stock | Reportes | parcial | S | — |
-| Tablero | Dashboard | igual o mejor | — | Filtros (S) |
-| Informes y calendario de informes | Informes, CalendarioInformes | mejor | — | — |
-| Planificación anual de informes | importarInformesPlaneacion | falta | M | Decisión |
-| Control de riesgos | ControlRiesgo | igual o mejor | — | — |
-| Foro | Foro | parcial | M | Sin encuestas, reacciones ni menciones (a propósito) |
-| Aviso del foro en el menú | ForoNotificacionesBell | parcial | S | — |
-| Notificaciones push | checkAlertas | falta | M | En la v1 no llegaban |
-| Firmas de jefes cargadas por el admin | GestorFirmasJefes | parcial | S | — |
-| Asistente y chatbot con IA | Alice, ChatbotSoporte | falta | M | Dejado afuera; se podría con Gemini |
-| Permisos aplicados de verdad | checkPermission | mejor (en la base) | — | — |
-| Usuarios con rol y sector | Permisos | igual o mejor | — | — |
-| Sectores, observar un sector | Sectores, observarSector | igual o mejor | — | — |
-| 2FA | twoFactorAuth | falta | S | MFA de Supabase |
-| Sesiones y logins sospechosos | SessionAudit | parcial | M | Leer el registro de Supabase Auth |
-| Registro de uso de la app | AppUsageLog | falta | S | — |
-| Ayuda y tutorial | Tutorial | parcial | S | Sin progreso ni guía paso a paso |
-| Buscador global (Ctrl+K) | — | nuevo en la v2 | — | — |
+| 1 | **Cadena de firmas intermedias del certificado** (firmantes en orden, "pendiente de firmas", rechazo con motivo, auditoría de firmas) | `CadenaFirmasPanel`, `FirmaIntermediaModal`, `AuditoriaFirmasModal`, `firmarCertificadoIntermedio` | L | Sí |
+| 2 | **Portal de operarios sin señal** (cola en el teléfono como `/mis-ots`) | `PortalOperario.jsx` | M | No (a verificar: las `portal_*` ya son repetibles) |
+| 3 | **Programar los certificados automáticos** (ya está la función) | `generateMonthlyCertificates` | S | Sí: una llamada a `programar_certificados_automaticos()` |
+| 4 | **Importar activos** desde Excel (plantilla), PDF con IA y formato BAPRO, con historial y deshacer; exportar el catálogo | `ImportarActivosWizard`, `importarActivos*`, `rollbackImportacion`, `exportActivosExcel.js` | L | Sí (lote para deshacer) |
+| 5 | **Revisión BAPRO por enlace** (el cliente marca activos vistos y ve las OTs del mes) | `RevisionBapro.jsx`, `RevisionBaproPanel`, `generarLinkBapro`, `registrarVistoBapro` | M | Sí + **decisión** (acceso sin usuario, como fase 16) |
+| 6 | **QRs masivos**: PDF de QRs por jefe y ZIP de todos | `ExportarQRsDialog`, `exportQrGroups.js` | S | No |
+| 7 | **Propagar el cambio de jefe** a pendientes y calefacción | `sincronizarPendientes` | S | Sí |
+| 8 | **Documentos del activo** en la ficha | `AssetDocumentos` | S | No (columna ya existe) |
+| 9 | **Obras**: listar las que no vienen en la planilla y borrar varias | `AuditoriaSincronizacion`, `eliminarTodasObras` | S | No |
+| 10 | **Reportes**: plantel, stock contra mínimo, semanal (a verificar alcance) | `Reportes.jsx` | M | Posible |
+| 11 | **Mapa**: obras en el mapa, OTs completadas, exportar asistencias a Excel | `MapaProyectosOTs`, `MapaOTsCompletadas`, `AsistenciasPanel` | M | No |
+| 12 | **Alertas**: prender/apagar cada tipo | `ConfigAlertas.jsx` | S | No |
+| 13 | **PDF descargable** del informe de inspección y de pendientes | `InformeViewer`, `ExportarPendientesPDF` | S | No |
+| 14 | **Detalles de administración**: contador del foro en el menú, firmas de jefes cargadas por el admin, chequeo de salud | `ForoNotificacionesBell`, `GestorFirmasJefes`, `auditarSistema` | S c/u | A verificar (firmas) |
+| 15 | **2FA** con el MFA de Supabase | `twoFactorAuth` | S | No |
+
+## Decisiones que te tocan
+- **Revisión BAPRO** (punto 5): reabre el acceso sin usuario, como la fase 16. ¿Se usa?
+- **Alertas y resumen semanal por mail**: falta elegir proveedor de correo (Resend gratis o SMTP).
+- **Planificación anual de informes** (`InformePlaneacion`): columnas atadas a 2025/2026.
+- **Importar la cobertura por jefe** del mapa de jefes.
+- **Crear OT desde el campo** (el operario): hoy solo gerencia y jefe de sitio.
+- **Rutina marcada a mano**: ¿cierra o cancela su OT `[Rutinas]`?
+- **Chatbot de soporte**: dejado afuera; se podría con Gemini.

@@ -12,9 +12,9 @@ const withPWA = withPWAInit({
   workboxOptions: {
     // El portal del operario queda guardado en el teléfono apenas se instala el service worker,
     // aunque todavía no se haya visitado: es lo que permite abrir la app y trabajar sin señal.
-    additionalManifestEntries: [{ url: '/mis-ots', revision: String(Date.now()) }],
-    // /mis-ots?ot=… y /mis-ots?ubicacion=… son la misma página guardada.
-    ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^ot$/, /^ubicacion$/, /^activo$/, /^nombre$/],
+    additionalManifestEntries: [{ url: '/mis-ots', revision: String(Date.now()) }, { url: '/portal', revision: String(Date.now()) }],
+    // /mis-ots?ot=… y /mis-ots?ubicacion=… son la misma página guardada (y /portal?t=… para el portal sin usuario).
+    ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^ot$/, /^ubicacion$/, /^activo$/, /^nombre$/, /^t$/],
   },
 });
 

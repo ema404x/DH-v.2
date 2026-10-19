@@ -9,13 +9,15 @@ import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle, ArrowLeft, Building2, Camera, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, ClipboardList,
-  FileText, Flag, Image as ImageIcon, Loader2, Lock, LogOut, MapPin, PenLine, Play, ShieldCheck, User, Wrench,
+  FileText, Flag, Image as ImageIcon, Loader2, Lock, LogOut, MapPin, PenLine, Play, ShieldCheck, User, WifiOff, Wrench,
 } from 'lucide-react';
 import { FirmaCanvas } from '@/components/FirmaCanvas';
 import { comprimirImagen } from '@/lib/imagen';
 import {
-  entrar, finalizar, iniciar, listarOrdenes, nombreGuardado, paseGuardado, salirPortal, subirFoto, type Ingreso, type OrdenPortal,
+  SinRed, aDataURL, entrar, listarOrdenes, nombreGuardado, olvidarPase, ordenesGuardadas, paseGuardado, posicion, salirPortal,
+  type Ingreso, type OrdenPortal,
 } from '@/lib/portal';
+import { aplicarCola, colaDe, descartar, enviarCola, hacer, reintentar, type ItemCola, type OpPortal } from '@/lib/portal-cola';
 
 const PRIORITY_STYLE: Record<string, { ring: string; chip: string; label: string }> = {
   baja: { ring: 'bg-slate-400', chip: 'bg-slate-500/15 text-slate-300 border-slate-500/25', label: 'Baja' },
@@ -241,8 +243,8 @@ function ListaOTs({ orders, ingreso, onSelect, onSalir }: { orders: OrdenPortal[
 }
 
 // ── Ejecutar una OT ─────────────────────────────────────────────────────────
-function EjecutarOT({ order, ingreso, onBack, onListo, onVencido }: {
-  order: OrdenPortal; ingreso: Ingreso; onBack: () => void; onListo: () => void; onVencido: (msg: string) => void;
+function EjecutarOT({ token, order, ingreso, onBack, onListo, onVencido, onCola }: {
+  token: string; order: OrdenPortal; ingreso: Ingreso; onBack: () => void; onListo: () => void; onVencido: (msg: string) => void; onCola: () => void;
 }) {
   const [estado, setEstado] = useState(order.estado);
   const [hechas, setHechas] = useState<Set<string>>(new Set(order.checklist.filter((t) => t.hecho).map((t) => t.id)));
@@ -250,7 +252,8 @@ function EjecutarOT({ order, ingreso, onBack, onListo, onVencido }: {
   const [notas, setNotas] = useState('');
   const [firma, setFirma] = useState<string | null>(null);
   const [verFirma, setVerFirma] = useState(false);
-  const [fotos, setFotos] = useState<string[]>([]);
+  // url (enviada) o data URL (guardada en el teléfono, esperando señal)
+  const [fotos, setFotos] = useState<{ src: string; pendiente: boolean }[]>([]);
   const [subiendo, setSubiendo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDesc, setShowDesc] = useState(true);
@@ -273,9 +276,20 @@ function EjecutarOT({ order, ingreso, onBack, onListo, onVencido }: {
     else setError(msg);
   };
 
+  // Con señal va directo; sin señal queda guardado en el teléfono y se envía solo (lib/portal-cola.ts).
+  const hacerOp = async (op: OpPortal) => {
+    const r = await hacer(token, ingreso.pase, op);
+    if (r === 'en_cola') onCola();
+    return r;
+  };
+  const iniciarOT = async () => {
+    await hacerOp({ tipo: 'iniciar', ot: order.id, gps: await posicion() });
+    setEstado('en_progreso');
+  };
+
   async function handleIniciar() {
     setSaving(true); setError('');
-    try { await iniciar(ingreso.pase, order.id); setEstado('en_progreso'); } catch (e) { fallo(e); } finally { setSaving(false); }
+    try { await iniciarOT(); } catch (e) { fallo(e); } finally { setSaving(false); }
   }
 
   async function agregarFotos(lista: FileList | null) {
@@ -283,10 +297,11 @@ function EjecutarOT({ order, ingreso, onBack, onListo, onVencido }: {
     setSubiendo(true); setError('');
     try {
       // Las fotos se cargan con la orden en curso (1 paso: se inicia sola al sacar la primera).
-      if (!enCurso) { await iniciar(ingreso.pase, order.id); setEstado('en_progreso'); }
+      if (!enCurso) await iniciarOT();
       for (const f of Array.from(lista)) {
-        const url = await subirFoto(ingreso.pase, order.id, await comprimirImagen(f));
-        setFotos((p) => [...p, url]);
+        const imagen = await aDataURL(await comprimirImagen(f));
+        const r = await hacerOp({ tipo: 'foto', ot: order.id, foto_id: crypto.randomUUID(), imagen });
+        setFotos((p) => [...p, { src: imagen, pendiente: r === 'en_cola' }]);
       }
     } catch (e) { fallo(e); } finally {
       setSubiendo(false);
@@ -297,8 +312,8 @@ function EjecutarOT({ order, ingreso, onBack, onListo, onVencido }: {
   async function handleFinalizar() {
     setSaving(true); setError('');
     try {
-      if (!enCurso) { await iniciar(ingreso.pase, order.id); setEstado('en_progreso'); }
-      await finalizar(ingreso.pase, order.id, { hechas: [...hechas], motivo, notas, firma_url: firma });
+      if (!enCurso) await iniciarOT();
+      await hacerOp({ tipo: 'finalizar', ot: order.id, hechas: [...hechas], motivo, notas, firma_url: firma, gps: await posicion() });
       onListo();
     } catch (e) { fallo(e); } finally { setSaving(false); }
   }
@@ -389,10 +404,13 @@ function EjecutarOT({ order, ingreso, onBack, onListo, onVencido }: {
           </p>
           {fotos.length > 0 && (
             <div className="grid grid-cols-3 gap-2 mb-3">
-              {fotos.map((u) => (
-                <div key={u} className="relative aspect-square rounded-xl overflow-hidden border-2 border-border">
+              {fotos.map((f, i) => (
+                <div key={i} className="relative aspect-square rounded-xl overflow-hidden border-2 border-border">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={u} alt="" className="w-full h-full object-cover" />
+                  <img src={f.src} alt="" className="w-full h-full object-cover" />
+                  {f.pendiente && (
+                    <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/80 text-white">Pendiente</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -453,6 +471,34 @@ function EjecutarOT({ order, ingreso, onBack, onListo, onVencido }: {
   );
 }
 
+// ── Aviso de señal y de lo que espera en el teléfono (como el banner de la v1) ──
+function AvisoCola({ online, enviando, cola, onReintentar, onDescartar }: {
+  online: boolean; enviando: boolean; cola: ItemCola[]; onReintentar: (id: number) => void; onDescartar: (id: number) => void;
+}) {
+  const rechazadas = cola.filter((i) => i.error);
+  const esperando = cola.length - rechazadas.length;
+  if (online && cola.length === 0) return null;
+  const QUE: Record<string, string> = { iniciar: 'Iniciar', foto: 'Foto', finalizar: 'Enviar al jefe' };
+  return (
+    <div className="sticky top-0 z-50 space-y-1 border-b border-amber-500/30 bg-amber-500/15 px-4 py-2 text-xs font-medium text-amber-300" role="status"
+      style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
+      <p className="flex items-center gap-2">
+        {enviando ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <WifiOff className="h-4 w-4 shrink-0" />}
+        {enviando ? `Enviando ${esperando} ${esperando === 1 ? 'cosa guardada' : 'cosas guardadas'}...`
+          : !online ? 'Sin conexión: lo que hagas queda guardado en el teléfono y se envía solo al volver la señal.'
+            : esperando > 0 ? `${esperando} ${esperando === 1 ? 'cosa guardada' : 'cosas guardadas'} esperando para enviarse.` : 'Hay cosas que no se pudieron enviar.'}
+      </p>
+      {rechazadas.map((i) => (
+        <div key={i.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-destructive/15 px-2 py-1.5 text-destructive">
+          <span className="flex-1">No se pudo enviar ({QUE[i.op.tipo]}): {i.error}</span>
+          <button type="button" onClick={() => onReintentar(i.id!)} className="min-h-[36px] rounded-md bg-white/10 px-2 font-semibold">Probar de nuevo</button>
+          <button type="button" onClick={() => onDescartar(i.id!)} className="min-h-[36px] rounded-md px-2 underline">Descartar</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Pantalla principal ──────────────────────────────────────────────────────
 function Portal() {
   const token = useSearchParams().get('t') ?? '';
@@ -461,27 +507,74 @@ function Portal() {
   const [orders, setOrders] = useState<OrdenPortal[]>([]);
   const [selected, setSelected] = useState<OrdenPortal | null>(null);
   const [aviso, setAviso] = useState('');
+  const [cola, setCola] = useState<ItemCola[]>([]);
+  const [online, setOnline] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const ingresoRef = useRef<Ingreso | null>(null);
+  ingresoRef.current = ingreso;
+
+  const leerCola = useCallback(async () => { const c = await colaDe(token); setCola(c); return c; }, [token]);
+
+  // El pase venció (o se apagó el portal): se pide la clave de nuevo. Lo guardado no se pierde.
+  const vencido = useCallback(async (msg: string) => {
+    olvidarPase(token);
+    setIngreso(null); setSelected(null);
+    const n = (await colaDe(token)).length;
+    setAviso(n ? `${msg} Tenés ${n} ${n === 1 ? 'cosa guardada' : 'cosas guardadas'}: se envían cuando entres.` : msg);
+    setPhase('pin');
+  }, [token]);
 
   const cargar = useCallback(async (i: Ingreso) => {
+    const c = await leerCola();
     try {
-      setOrders(await listarOrdenes(i.pase));
+      setOrders(aplicarCola(await listarOrdenes(token, i.pase), c, i.nombre));
       setPhase('list');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : '';
-      salirPortal(token);
-      setIngreso(null);
-      setAviso(/venció/.test(msg) ? msg : msg || 'No se pudieron cargar las órdenes.');
-      setPhase('pin');
+      if (e instanceof SinRed) {
+        // Sin señal: la última lista guardada, con lo que está esperando aplicado.
+        setOrders(aplicarCola(ordenesGuardadas(token) ?? [], c, i.nombre));
+        setPhase('list');
+        return;
+      }
+      const msg = e instanceof Error ? e.message : 'No se pudieron cargar las órdenes.';
+      if (/venció/.test(msg)) await vencido(msg);
+      else { setAviso(msg); setPhase('list'); }
     }
-  }, [token]);
+  }, [token, leerCola, vencido]);
+
+  // Envía lo guardado: al abrir, al volver la señal, al volver a la app y cada 30 s.
+  const enviar = useCallback(async () => {
+    const i = ingresoRef.current;
+    if (!i || !navigator.onLine) return;
+    const c = await colaDe(token);
+    if (!c.some((x) => !x.error)) { setCola(c); return; }
+    setEnviando(true);
+    const r = await enviarCola(token, i.pase).finally(() => setEnviando(false));
+    if (r === 'vencido') { await vencido('Tu ingreso venció. Poné la clave de nuevo.'); return; }
+    await cargar(i);
+  }, [token, cargar, vencido]);
 
   useEffect(() => {
     if (!token) { setPhase('error'); return; }
+    setOnline(navigator.onLine);
     const g = paseGuardado(token);
-    if (g) { setIngreso(g); cargar(g); } else setPhase('pin');
-  }, [token, cargar]);
+    if (g) { setIngreso(g); ingresoRef.current = g; cargar(g).then(enviar); } else { leerCola(); setPhase('pin'); }
+    const on = () => { setOnline(true); enviar(); };
+    const off = () => setOnline(false);
+    const vis = () => { if (document.visibilityState === 'visible') enviar(); };
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    document.addEventListener('visibilitychange', vis);
+    const t = setInterval(enviar, 30_000);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); document.removeEventListener('visibilitychange', vis); clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-  const vencido = (msg: string) => { salirPortal(token); setIngreso(null); setSelected(null); setAviso(msg); setPhase('pin'); };
+  const banner = (
+    <AvisoCola online={online} enviando={enviando} cola={cola}
+      onReintentar={async (id) => { await reintentar(id); await leerCola(); enviar(); }}
+      onDescartar={async (id) => { await descartar(id); const i = ingresoRef.current; if (i) await cargar(i); else await leerCola(); }} />
+  );
 
   if (phase === 'loading') return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="h-12 w-12 text-primary/40 animate-spin" /></div>;
 
@@ -498,20 +591,31 @@ function Portal() {
   if (phase === 'pin' || !ingreso) return (
     <>
       {aviso && <div role="status" className="fixed top-0 inset-x-0 z-50 bg-amber-500/15 border-b border-amber-500/30 text-amber-300 text-xs font-medium px-4 py-2 text-center">{aviso}</div>}
-      <PantallaClave token={token} onSuccess={(i) => { setAviso(''); setIngreso(i); cargar(i); }} />
+      <PantallaClave token={token} onSuccess={(i) => { setAviso(''); setIngreso(i); ingresoRef.current = i; cargar(i).then(enviar); }} />
     </>
   );
 
   if (phase === 'execute' && selected) return (
-    <EjecutarOT order={selected} ingreso={ingreso}
-      onBack={() => { setSelected(null); cargar(ingreso); }}
-      onListo={() => { setSelected(null); cargar(ingreso); }}
-      onVencido={vencido} />
+    <>
+      {banner}
+      <EjecutarOT token={token} order={selected} ingreso={ingreso}
+        onBack={() => { setSelected(null); cargar(ingreso); }}
+        onListo={() => { setSelected(null); cargar(ingreso).then(enviar); }}
+        onVencido={vencido}
+        onCola={leerCola} />
+    </>
   );
 
   return (
-    <ListaOTs orders={orders} ingreso={ingreso} onSelect={(o) => { setSelected(o); setPhase('execute'); }}
-      onSalir={() => { salirPortal(token); setIngreso(null); setOrders([]); setPhase('pin'); }} />
+    <>
+      {banner}
+      {aviso && <p role="alert" className="bg-destructive/10 px-4 py-2 text-center text-sm text-destructive">{aviso}</p>}
+      <ListaOTs orders={orders} ingreso={ingreso} onSelect={(o) => { setAviso(''); setSelected(o); setPhase('execute'); }}
+        onSalir={() => {
+          if (cola.length) { setAviso('Tenés cosas guardadas sin enviar. Esperá a tener señal antes de salir.'); return; }
+          salirPortal(token); setIngreso(null); setOrders([]); setPhase('pin');
+        }} />
+    </>
   );
 }
 
