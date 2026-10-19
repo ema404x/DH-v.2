@@ -537,7 +537,9 @@ Decisión de Emanuel (opción C): reabre "todo con login" (§2 bis) SOLO para es
   Sectores (`components/gestion/PortalOperarios.tsx`, solo admin).
 - Diferencias con la v1 a sabiendas: la lista se ve recién después de la clave (en la v1 se veía sin clave); el
   checklist se marca en el portal (la v2 lo exige); el portal necesita señal (la v1 tenía cola sin señal: pendiente).
-- Falta: desplegar la función, crear el usuario Portal QR y configurar la clave; probar de punta a punta.
+- Edge function **desplegada el 19/10/2026** desde el editor del panel (código con hash verificado, Verify JWT apagado y
+  guardado; responde el mensaje de la base a un pase inventado).
+- Falta: crear el usuario Portal QR (lo crea Emanuel) y configurar la clave; probar de punta a punta.
 
 ## Tablero de inicio estilo Apple (8/10/2026)
 Emanuel pidió un tablero "premium"; de dos rondas de bocetos aprobó el estilo Apple/iOS (claro y oscuro, distinto por rol).
