@@ -574,6 +574,24 @@ direcciones**, zonas 8A/8B/10A, sin jefes (la planilla no los trae).
   (3263,3 con código y 2606,7 sin código); quedó un solo lugar con 2606,7. "Estados Unidos 1228" está en las 3 comunas con
   códigos distintos: quedaron 3 lugares.
 
+## Cadena de firmas de certificados (fase 18, 20/10/2026)
+Emanuel eligió construirla (en la v1 la usaron 2 de 283 certificados). Pantalla de la v1 (`CadenaFirmasPanel`,
+`FirmaIntermediaModal`, `TipsFirmaPanel` + `tipsCertificado` con "Limpieza de Campanas", `AuditoriaFirmasModal`, firmas en el
+PDF), reglas de la v2:
+- `dh1-v2-fase18-cadena-firmas.sql` (pruebas 549/549, sección 20). **NO corrida todavía en el Supabase real.** Partes
+  copiadas de la fase 14 (protección, emitir, aprobar, `v_certificados`) armadas por script con cambios puntuales.
+- La cadena se arma en el borrador (`certificados.cadena_firmas uuid[]`, usuarios del sector, en orden). `enviar_a_firmas`
+  hace los controles de emitir y deja el certificado en `en_firmas` (congelado, sin número; el emisor es quien lo mandó).
+  `firmar_certificado_intermedio`: solo al que le toca; el último numera, emite y crea la solicitud. `rechazar_firma_intermedia`:
+  el de turno, con motivo → vuelve a borrador. Cada envío es una ronda (`certificado_firmantes.ronda`): la historia queda.
+  Mientras está en firmas, el contrato no admite otro certificado (trigger). La restricción "borrador ⇔ sin número" de la
+  fase 4 pasa a "borrador o en firmas ⇔ sin número".
+- **Decisión conservadora tomada (revisable):** quien firmó en la cadena tampoco aprueba ese certificado.
+- App: `components/certificados/{CadenaFirmas,FirmaIntermediaModal,TipsFirmaPanel,AuditoriaFirmas}.tsx`, `tipsCertificado.ts`;
+  editor ("Enviar a firmas" cuando hay cadena), lista ("Pend. Firmas", "Te toca firmar", Firmar, Auditoría), PDF (jefe →
+  cadena → gerente, 3 por fila). El tablero del jefe muestra "Falta tu firma" también para la cadena.
+- **El código necesita la fase 18 en la base** (guardar un certificado guarda la cadena).
+
 ## Noche del 19/10/2026 (Emanuel dejó la PC trabajando)
 - **Portal sin señal** (`lib/portal-cola.ts`, pruebas `pruebas/portal-cola.test.ts` 11/11 con Deno + fake-indexeddb:
   `npx deno test -A --no-check --unstable-sloppy-imports --node-modules-dir=none pruebas/portal-cola.test.ts` desde app/).
