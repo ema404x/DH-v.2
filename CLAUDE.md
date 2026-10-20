@@ -578,7 +578,11 @@ direcciones**, zonas 8A/8B/10A, sin jefes (la planilla no los trae).
 Emanuel eligió construirla (en la v1 la usaron 2 de 283 certificados). Pantalla de la v1 (`CadenaFirmasPanel`,
 `FirmaIntermediaModal`, `TipsFirmaPanel` + `tipsCertificado` con "Limpieza de Campanas", `AuditoriaFirmasModal`, firmas en el
 PDF), reglas de la v2:
-- `dh1-v2-fase18-cadena-firmas.sql` (pruebas 549/549, sección 20). **NO corrida todavía en el Supabase real.** Partes
+- `dh1-v2-fase18-cadena-firmas.sql` (pruebas 550/550, sección 20). **Corrida en el Supabase real el 20/10/2026** con el OK de
+  Emanuel (hash feec3803… verificado; el panel avisó "tabla sin RLS" porque no reconoce `aplicar_rls_sector`: se corrió tal
+  cual y la consulta de control confirmó RLS y política). Después, 3 `revoke … from public, anon` (las funciones nuevas quedaban
+  ejecutables por anon vía PUBLIC), ya incluidos en el archivo. Vista y editor verificados en vivo (panel, buscador, "Enviar a
+  firmas") sin guardar nada. Los operarios no aparecen como posibles firmantes (así no se cuela el usuario Portal QR). Partes
   copiadas de la fase 14 (protección, emitir, aprobar, `v_certificados`) armadas por script con cambios puntuales.
 - La cadena se arma en el borrador (`certificados.cadena_firmas uuid[]`, usuarios del sector, en orden). `enviar_a_firmas`
   hace los controles de emitir y deja el certificado en `en_firmas` (congelado, sin número; el emisor es quien lo mandó).
@@ -590,7 +594,6 @@ PDF), reglas de la v2:
 - App: `components/certificados/{CadenaFirmas,FirmaIntermediaModal,TipsFirmaPanel,AuditoriaFirmas}.tsx`, `tipsCertificado.ts`;
   editor ("Enviar a firmas" cuando hay cadena), lista ("Pend. Firmas", "Te toca firmar", Firmar, Auditoría), PDF (jefe →
   cadena → gerente, 3 por fila). El tablero del jefe muestra "Falta tu firma" también para la cadena.
-- **El código necesita la fase 18 en la base** (guardar un certificado guarda la cadena).
 
 ## Noche del 19/10/2026 (Emanuel dejó la PC trabajando)
 - **Portal sin señal** (`lib/portal-cola.ts`, pruebas `pruebas/portal-cola.test.ts` 11/11 con Deno + fake-indexeddb:

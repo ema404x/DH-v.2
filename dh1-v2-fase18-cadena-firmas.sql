@@ -235,9 +235,9 @@ end $$;
 grant execute on function public.enviar_a_firmas(uuid, text) to authenticated;
 grant execute on function public.firmar_certificado_intermedio(uuid, text) to authenticated;
 grant execute on function public.rechazar_firma_intermedia(uuid, text) to authenticated;
-revoke all on function public.enviar_a_firmas(uuid, text) from anon;
-revoke all on function public.firmar_certificado_intermedio(uuid, text) from anon;
-revoke all on function public.rechazar_firma_intermedia(uuid, text) from anon;
+revoke all on function public.enviar_a_firmas(uuid, text) from public, anon;
+revoke all on function public.firmar_certificado_intermedio(uuid, text) from public, anon;
+revoke all on function public.rechazar_firma_intermedia(uuid, text) from public, anon;
 revoke all on public.certificado_firmantes from anon;
 -- Las funciones corren con los permisos de quien llama: escribe el usuario, pero el trigger solo deja a las funciones.
 grant select, insert, update, delete on public.certificado_firmantes to authenticated;

@@ -184,8 +184,10 @@ export async function rechazarCertificado(id: string, motivo: string): Promise<v
 
 export interface PosibleFirmante { id: string; nombre: string; email: string; rol: string; firma_url: string | null }
 
+// Quienes revisan un certificado: gerencia, jefes de sitio e inspectores. Los operarios no (y así tampoco aparece el
+// usuario "Portal QR" del portal sin usuario).
 export async function listarPosiblesFirmantes(): Promise<PosibleFirmante[]> {
-  return exigir(await sb().from('perfiles').select('id, nombre, email, rol, firma_url').eq('activo', true).order('nombre')) as PosibleFirmante[];
+  return exigir(await sb().from('perfiles').select('id, nombre, email, rol, firma_url').eq('activo', true).neq('rol', 'operario').order('nombre')) as PosibleFirmante[];
 }
 
 export async function guardarCadena(id: string, perfiles: string[]): Promise<void> {

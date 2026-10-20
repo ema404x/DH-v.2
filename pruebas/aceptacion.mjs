@@ -1695,6 +1695,9 @@ await como(U.gerE);
 await db.query(`delete from certificados where id = $1`, [x20c2]);
 ok('borrar el borrador se lleva su historia de firmas', (await uno(`select count(*)::int n from certificado_firmantes where certificado_id = $1`, [x20c2])).n === 0);
 await como(U.gerB);
+await servicio();
+ok('anon no ejecuta las funciones de la cadena', (await uno(`select has_function_privilege('anon', 'public.firmar_certificado_intermedio(uuid,text)', 'execute') a, has_function_privilege('anon', 'public.enviar_a_firmas(uuid,text)', 'execute') b, has_function_privilege('anon', 'public.rechazar_firma_intermedia(uuid,text)', 'execute') c`)).a === false);
+await como(U.gerB);
 ok('otro sector no ve las firmas', (await q(`select * from certificado_firmantes`)).length === 0);
 await servicio();
 
