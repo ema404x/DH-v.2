@@ -26,7 +26,7 @@ await db.exec(`
   grant execute on function auth.uid() to anon, authenticated, service_role;
 `);
 
-for (const f of ['dh1-v2-fundacion.sql', 'dh1-v2-fase3-gestion.sql', 'dh1-v2-fase4-certificacion.sql', 'dh1-v2-fase5-migracion.sql', 'dh1-v2-fase6-operacion.sql', 'dh1-v2-fase7-informe-ia.sql', 'dh1-v2-fase8-gente.sql', 'dh1-v2-fase9-obras.sql', 'dh1-v2-fase10-panol.sql', 'dh1-v2-fase11-control.sql', 'dh1-v2-fase12-administracion.sql', 'dh1-v2-fase13-ajustes.sql', 'dh1-v2-fase14-certificados-v1.sql', 'dh1-v2-fase15-ot-obra-firma.sql', 'dh1-v2-fase16-portal-operarios.sql', 'dh1-v2-fase17-directorio-por-codigo.sql']) {
+for (const f of ['dh1-v2-fundacion.sql', 'dh1-v2-fase3-gestion.sql', 'dh1-v2-fase4-certificacion.sql', 'dh1-v2-fase5-migracion.sql', 'dh1-v2-fase6-operacion.sql', 'dh1-v2-fase7-informe-ia.sql', 'dh1-v2-fase8-gente.sql', 'dh1-v2-fase9-obras.sql', 'dh1-v2-fase10-panol.sql', 'dh1-v2-fase11-control.sql', 'dh1-v2-fase12-administracion.sql', 'dh1-v2-fase13-ajustes.sql', 'dh1-v2-fase14-certificados-v1.sql', 'dh1-v2-fase15-ot-obra-firma.sql', 'dh1-v2-fase16-portal-operarios.sql', 'dh1-v2-fase17-directorio-por-codigo.sql', 'dh1-v2-fase18-cadena-firmas.sql']) {
   try {
     await db.exec(readFileSync(join(raiz, f), 'utf8'));
     console.log(`cargado  ${f}`);
@@ -1604,6 +1604,98 @@ await db.query(`insert into ubicaciones (nombre) values ('X19 Escuela a mano')`)
 const x19e = await x19imp([x19fila('X19 Escuela a mano', 'X19-0999-0001', 'X19 CALLE 1')]);
 const x19m = await x19lugares('X19 Escuela a mano');
 ok('un lugar cargado a mano toma el código y la dirección', x19e.ubicaciones_nuevas === 0 && x19m.length === 1 && x19m[0].codigo === 'X19-0999-0001' && x19m[0].direccion === 'X19 CALLE 1', JSON.stringify(x19m));
+await servicio();
+
+// ---------------------------------------------------------------- 20. fase 18: cadena de firmas
+titulo('20. Cadena de firmas intermedias del certificado (fase 18)');
+await como(U.gerE);
+const x20pdf = {
+  contrato: { tipo: 'informe', contratista: 'Informes SRL', obra_servicio: 'Termografía', emprendimiento: 'EDUCACION COMUNA 8B', ada_numero: 'ADA-F18' },
+  items: [{ descripcion: 'Termografía anual', um: 'gl', cantidad: 2, importe_unitario: 500000, presente_importe: 500000 }],
+  cabecera: { periodo: 'Octubre 2026' },
+};
+const x20c = (await uno(`select guardar_certificado($1::jsonb) as id`, [JSON.stringify(x20pdf)])).id;
+await rechaza('sin firmantes no se manda a firmar', `select enviar_a_firmas($1)`, /al menos un firmante/, [x20c]);
+await db.query(`update certificados set cadena_firmas = array[$2::uuid, $2::uuid] where id = $1`, [x20c, U.jefeE]);
+await rechaza('una persona no está dos veces en la cadena', `select enviar_a_firmas($1)`, /dos veces/, [x20c]);
+await db.query(`update certificados set cadena_firmas = array[$2::uuid, $3::uuid] where id = $1`, [x20c, U.jefeE, U.gerB]);
+await rechaza('los firmantes son de este sector', `select enviar_a_firmas($1)`, /activos de este sector/, [x20c]);
+await db.query(`update certificados set cadena_firmas = array[$2::uuid, $3::uuid] where id = $1`, [x20c, U.jefeE, U.gg]);
+await como(U.opE);
+await rechaza('un operario no manda a firmar', `select enviar_a_firmas($1)`, /Solo gerencia o un jefe de sitio/, [x20c]);
+await como(U.gerE);
+await db.query(`select enviar_a_firmas($1)`, [x20c]);
+const x20e = await uno(`select estado::text, numero, emitido_por, enviado_firmas_at from certificados where id = $1`, [x20c]);
+ok('queda esperando firmas, sin número y con quien lo mandó como emisor', x20e.estado === 'en_firmas' && x20e.numero === null && x20e.emitido_por === U.gerE && !!x20e.enviado_firmas_at, JSON.stringify(x20e));
+const x20f = await q(`select ronda, orden, perfil_id, estado from certificado_firmantes where certificado_id = $1 order by orden`, [x20c]);
+ok('la cadena queda armada en orden, todos pendientes', x20f.length === 2 && x20f[0].perfil_id === U.jefeE && x20f[1].perfil_id === U.gg && x20f.every((f) => f.estado === 'pendiente' && f.ronda === 1), JSON.stringify(x20f));
+await rechaza('en firmas no se modifica', `update certificados set numero_recepcion = 'X' where id = $1`, /esperando firmas/, [x20c]);
+await rechaza('en firmas no se emite por fuera de la cadena', `select emitir_certificado($1)`, /esperando firmas/, [x20c]);
+await rechaza('mientras espera firmas, el contrato no admite otro certificado', `select guardar_certificado($1::jsonb)`, /esperando firmas/,
+  [JSON.stringify({ ...x20pdf, items: undefined, cabecera: { periodo: 'Noviembre 2026' } })]);
+await rechaza('las firmas no se cargan a mano', `insert into certificado_firmantes (certificado_id, ronda, orden, nombre) values ($1, 9, 1, 'x')`, /no se cargan a mano/, [x20c]);
+
+// firmas en orden
+await como(U.gg);
+await rechaza('firma solo al que le toca', `select firmar_certificado_intermedio($1, 'data:image/png;base64,GG')`, /le toca a Usuario e2/, [x20c]);
+await como(U.opE);
+await rechaza('alguien de afuera de la cadena no firma', `select firmar_certificado_intermedio($1, 'data:image/png;base64,OP')`, /no te toca/, [x20c]);
+await como(U.jefeE);
+await rechaza('sin firma (ni guardada en el perfil) no firma', `select firmar_certificado_intermedio($1)`, /Dibujá tu firma/, [x20c]);
+const x20r1 = (await uno(`select firmar_certificado_intermedio($1, 'data:image/png;base64,JEFE') r`, [x20c])).r;
+ok('el primero firma y sigue esperando al próximo', x20r1.estado === 'en_firmas');
+await rechaza('no firma dos veces', `select firmar_certificado_intermedio($1, 'data:image/png;base64,JEFE')`, /no te toca/, [x20c]);
+const x20v = await uno(`select firmas, firmante_actual_id from v_certificados where id = $1`, [x20c]);
+ok('la vista muestra la cadena y a quién le toca', x20v.firmas.length === 2 && x20v.firmas[0].estado === 'firmado' && x20v.firmante_actual_id === U.gg, JSON.stringify(x20v));
+
+// rechazo
+await como(U.gg);
+await rechaza('rechazar pide motivo', `select rechazar_firma_intermedia($1, ' ')`, /motivo/, [x20c]);
+await db.query(`select rechazar_firma_intermedia($1, 'Falta el certificado de calibración')`, [x20c]);
+const x20b = await uno(`select estado::text, emitido_por, rechazo_motivo, rechazado_por from certificados where id = $1`, [x20c]);
+ok('el rechazo lo devuelve a borrador con el motivo', x20b.estado === 'borrador' && x20b.emitido_por === null && x20b.rechazo_motivo === 'Falta el certificado de calibración' && x20b.rechazado_por === U.gg, JSON.stringify(x20b));
+await como(U.gerE);
+await db.query(`update certificados set numero_recepcion = 'R-20' where id = $1`, [x20c]);
+ok('de vuelta en borrador se puede corregir', (await uno(`select numero_recepcion from certificados where id = $1`, [x20c])).numero_recepcion === 'R-20');
+
+// segunda ronda: la historia queda
+await db.query(`select enviar_a_firmas($1)`, [x20c]);
+const x20h = await q(`select ronda, estado from certificado_firmantes where certificado_id = $1 order by ronda, orden`, [x20c]);
+ok('reenviar arma una ronda nueva y guarda la anterior', x20h.length === 4 && x20h[0].estado === 'firmado' && x20h[1].estado === 'rechazado'
+  && x20h.slice(2).every((f) => f.ronda === 2 && f.estado === 'pendiente'), JSON.stringify(x20h));
+ok('la vista muestra solo la ronda actual', (await uno(`select jsonb_array_length(firmas) n from v_certificados where id = $1`, [x20c])).n === 2);
+await como(U.jefeE);
+await db.query(`select firmar_certificado_intermedio($1, 'data:image/png;base64,JEFE')`, [x20c]);
+await como(U.gg);
+const x20r2 = (await uno(`select firmar_certificado_intermedio($1, 'data:image/png;base64,GG') r`, [x20c])).r;
+const x20em = await uno(`select estado::text, numero, emitido_por, emitido_at from certificados where id = $1`, [x20c]);
+ok('el último firmante emite: número y sello, con el emisor original', x20r2.estado === 'emitido' && x20r2.numero === 1 && x20em.estado === 'emitido'
+  && x20em.numero === 1 && x20em.emitido_por === U.gerE && !!x20em.emitido_at, JSON.stringify({ x20r2, x20em }));
+ok('y sale la solicitud de aprobación', (await uno(`select count(*)::int n from solicitudes_certificado where certificado_id = $1 and estado = 'enviada'`, [x20c])).n === 1);
+
+// aprobar
+await rechaza('quien firmó en la cadena no aprueba', `select aprobar_certificado($1, 'data:image/png;base64,GG')`, /Firmaste este certificado/, [x20c]);
+await como(U.gerE);
+await rechaza('quien lo mandó a firmar tampoco (es el emisor)', `select aprobar_certificado($1, 'data:image/png;base64,G')`, /Quien emite/, [x20c]);
+await como(U.adm);
+await db.query(`select aprobar_certificado($1, 'data:image/png;base64,ADM')`, [x20c]);
+ok('otra persona de gerencia lo aprueba', (await uno(`select estado::text from certificados where id = $1`, [x20c])).estado === 'aprobado');
+
+// un borrador con historia de firmas se puede borrar
+await como(U.gerE);
+const x20c2 = (await uno(`select guardar_certificado($1::jsonb) as id`, [JSON.stringify({ ...x20pdf, items: undefined, cabecera: { periodo: 'Noviembre 2026' } })])).id;
+const x20it = await q(`select contrato_item_id as id from certificado_items where certificado_id = $1`, [x20c2]);
+await db.query(`select guardar_certificado($1::jsonb)`, [JSON.stringify({ certificado_id: x20c2,
+  items: [{ id: x20it[0].id, descripcion: 'Termografía anual', um: 'gl', cantidad: 2, importe_unitario: 500000, presente_importe: 100 }] })]);
+await db.query(`update certificados set cadena_firmas = array[$2::uuid] where id = $1`, [x20c2, U.jefeE]);
+await db.query(`select enviar_a_firmas($1)`, [x20c2]);
+await como(U.jefeE);
+await db.query(`select rechazar_firma_intermedia($1, 'No corresponde')`, [x20c2]);
+await como(U.gerE);
+await db.query(`delete from certificados where id = $1`, [x20c2]);
+ok('borrar el borrador se lleva su historia de firmas', (await uno(`select count(*)::int n from certificado_firmantes where certificado_id = $1`, [x20c2])).n === 0);
+await como(U.gerB);
+ok('otro sector no ve las firmas', (await q(`select * from certificado_firmantes`)).length === 0);
 await servicio();
 
 // ---------------------------------------------------------------- resultado

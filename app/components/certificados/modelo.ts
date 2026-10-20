@@ -1,7 +1,7 @@
 // El certificado mientras se edita (editor, vista previa y PDF), con las cuentas de la v1 adaptadas a las reglas
 // de la base: "A certificar $" por ítem, anticipo y fondo de reparo en % sobre lo certificado o en monto fijo.
 import type { ContratoLeido } from '@/lib/certificacion';
-import { hoyISO, type CertificadoFila, type DatosGuardar, type EstadoCert, type LineaCert, type TipoCert } from '@/lib/certificados';
+import { hoyISO, type CertificadoFila, type DatosGuardar, type EstadoCert, type FirmaCadena, type LineaCert, type TipoCert } from '@/lib/certificados';
 import type { DatosPDF, ItemPDF } from '@/lib/pdfCertificado';
 
 export interface ItemEd {
@@ -59,6 +59,9 @@ export interface FormCert {
   aprobado_por?: string | null;
   fecha_aprobacion?: string | null;
   generado_automaticamente?: boolean;
+  // cadena de firmas (fase 18): ids de perfiles en orden; las firmas de la ronda actual
+  cadena: string[];
+  firmas?: FirmaCadena[];
 }
 
 const redondear = (n: number) => Math.round(n * 100) / 100;
@@ -89,7 +92,7 @@ export function formVacio(): FormCert {
     plazo_obra: '', plazo_entrega: '', fecha_finalizacion: '', monto_obra_contratada: '', porcentaje_avance: 0,
     fecha_certificado: hoyISO(), numero_recepcion: '', condiciones_pago: '', base: '',
     anticipo_pct: 0, anticipo_monto_manual: null, fondo_reparo_pct: 0, fondo_reparo_monto_manual: null, fondo_reparo_label: '',
-    fondo_reparo_aplicar: false, ada_pdf_url: null, total_documento: null, items: [],
+    fondo_reparo_aplicar: false, ada_pdf_url: null, total_documento: null, items: [], cadena: [],
   };
 }
 
@@ -153,6 +156,7 @@ export function formDesdeCertificado(c: CertificadoFila, lineas: LineaCert[]): F
     })),
     firma_jefe_url: c.firma_jefe_url, firmado_por_jefe: c.firma_jefe_nombre, fecha_firma_jefe: c.firma_jefe_at,
     firma_gerente_url: c.firma_url, aprobado_por: c.aprobado_nombre, fecha_aprobacion: c.aprobado_at, generado_automaticamente: c.generado_automaticamente,
+    cadena: c.cadena_firmas ?? [], firmas: c.firmas ?? [],
   };
 }
 
@@ -211,5 +215,7 @@ export function aPDF(f: FormCert, lineas?: LineaCert[]): DatosPDF {
     fondo_reparo_label: f.fondo_reparo_label || null,
     firma_jefe_url: f.firma_jefe_url ?? null, firmado_por_jefe: f.firmado_por_jefe ?? null, fecha_firma_jefe: f.fecha_firma_jefe ?? null,
     firma_gerente_url: f.firma_gerente_url ?? null, aprobado_por: f.aprobado_por ?? null, fecha_aprobacion: f.fecha_aprobacion ?? null,
+    // Las firmas intermedias que ya se aplicaron, en orden (como la v1).
+    firmas_cadena: (f.firmas ?? []).filter((x) => x.estado === 'firmado' && x.firma_url).map((x) => ({ nombre: x.nombre, firma_url: x.firma_url!, firmado_at: x.firmado_at })),
   };
 }

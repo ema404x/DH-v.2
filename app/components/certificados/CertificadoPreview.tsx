@@ -69,6 +69,7 @@ export function CertificadoPreview({ form, lineas, onVolver, textoVolver = 'Volv
           <h1 className="mb-2 text-3xl font-bold">Certificado N° {form.numero ?? form.numeroPrevisto}</h1>
           <p className="text-sm capitalize text-suave">{form.tipo.replace(/_/g, ' ')} · {fmtFecha(form.fecha_certificado)}</p>
           {form.estado === 'borrador' && !form.numero && <p className="mt-1 text-xs text-suave">El número definitivo lo asigna la base al emitir.</p>}
+          {form.estado === 'en_firmas' && <p className="mt-1 text-xs text-alerta">Esperando la cadena de firmas: se numera y se emite cuando firma el último.</p>}
         </div>
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm md:grid-cols-2">

@@ -265,7 +265,8 @@ export async function cargarJefe(perfilId: string, nombre: string): Promise<Dato
     emergencias: em.emergencias.filter((e) => (e.estado === 'activa' || e.estado === 'en_atencion') && (!e.jefe_sitio_nombre || e.jefe_sitio_nombre === nombre)),
     cuadrilla: empleados.filter((e) => e.jefe_sitio_id === perfilId && e.estado === 'activo'),
     obras: mias,
-    certsPorFirmar: certs.filter((c) => c.estado === 'emitido' && c.tipo === 'obra' && !c.firma_jefe_url),
+    // Falta su firma: obra emitida sin firma del jefe, o un certificado de la cadena de firmas en el que le toca firmar.
+    certsPorFirmar: certs.filter((c) => (c.estado === 'emitido' && c.tipo === 'obra' && !c.firma_jefe_url) || (c.estado === 'en_firmas' && c.firmante_actual_id === perfilId)),
     aCobrar: cobros.filter((c) => idsObras.has(c.obra_id)).reduce((s, c) => s + Number(c.monto_a_cobrar || 0), 0),
   };
 }

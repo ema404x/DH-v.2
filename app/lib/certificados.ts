@@ -7,7 +7,18 @@ import { exigir } from './errores';
 const sb = () => supabase();
 
 export type TipoCert = 'abono_mensual' | 'obra' | 'informe';
-export type EstadoCert = 'borrador' | 'emitido' | 'aprobado';
+export type EstadoCert = 'borrador' | 'en_firmas' | 'emitido' | 'aprobado';
+
+// Un paso de la cadena de firmas (ronda actual), como viene de v_certificados.firmas (fase 18).
+export interface FirmaCadena {
+  orden: number;
+  perfil_id: string | null;
+  nombre: string;
+  estado: 'pendiente' | 'firmado' | 'rechazado';
+  firma_url: string | null;
+  firmado_at: string | null;
+  motivo: string | null;
+}
 
 export const TIPO_LABEL: Record<TipoCert, string> = { abono_mensual: 'Abono Mensual', obra: 'Obra', informe: 'Informe' };
 export const COMUNAS = ['8A', '8B', '10A'] as const;
@@ -68,6 +79,11 @@ export interface CertificadoFila {
   comuna: string | null;
   rubro: string | null;
   ultimo_numero_contrato: number | null;
+  // cadena de firmas (fase 18)
+  cadena_firmas: string[];
+  firmas: FirmaCadena[];
+  firmante_actual_id: string | null;
+  enviado_firmas_at: string | null;
 }
 
 export interface LineaCert {
@@ -103,7 +119,8 @@ export async function obtenerCertificado(id: string): Promise<{ cert: Certificad
 
 // Historial de acumulados (v1: certificados no borrador del mismo ADA, en orden de creación).
 export async function historialDelContrato(contratoId: string): Promise<CertificadoFila[]> {
-  return exigir(await sb().from('v_certificados').select('*').eq('contrato_id', contratoId).neq('estado', 'borrador').order('numero')) as CertificadoFila[];
+  // Solo lo emitido o aprobado (uno que espera firmas todavía no cuenta como certificado).
+  return exigir(await sb().from('v_certificados').select('*').eq('contrato_id', contratoId).in('estado', ['emitido', 'aprobado']).order('numero')) as CertificadoFila[];
 }
 
 export async function contratoPorAda(ada: string): Promise<{ id: string; ultimo_numero: number | null } | null> {
@@ -159,6 +176,39 @@ export async function aprobarCertificado(id: string, firma: string | null): Prom
 
 export async function rechazarCertificado(id: string, motivo: string): Promise<void> {
   exigir(await sb().rpc('rechazar_certificado', { p_id: id, p_motivo: motivo }));
+}
+
+// ------------------------------------------------------------------ cadena de firmas (fase 18)
+// La cadena se arma en el borrador (ids de perfiles, en orden). Mandarla a firmar congela el certificado; el último
+// firmante lo emite (numera y crea la solicitud). Las reglas las pone la base.
+
+export interface PosibleFirmante { id: string; nombre: string; email: string; rol: string; firma_url: string | null }
+
+export async function listarPosiblesFirmantes(): Promise<PosibleFirmante[]> {
+  return exigir(await sb().from('perfiles').select('id, nombre, email, rol, firma_url').eq('activo', true).order('nombre')) as PosibleFirmante[];
+}
+
+export async function guardarCadena(id: string, perfiles: string[]): Promise<void> {
+  exigir(await sb().from('certificados').update({ cadena_firmas: perfiles }).eq('id', id).select('id').single());
+}
+
+export async function enviarAFirmas(id: string, firmaJefe: string | null): Promise<void> {
+  exigir(await sb().rpc('enviar_a_firmas', { p_id: id, p_firma_jefe: firmaJefe }));
+}
+
+export async function firmarIntermedio(id: string, firma: string | null): Promise<{ estado: 'en_firmas' | 'emitido'; numero?: number }> {
+  return exigir(await sb().rpc('firmar_certificado_intermedio', { p_id: id, p_firma_url: firma })) as { estado: 'en_firmas' | 'emitido'; numero?: number };
+}
+
+export async function rechazarFirmaIntermedia(id: string, motivo: string): Promise<void> {
+  exigir(await sb().rpc('rechazar_firma_intermedia', { p_id: id, p_motivo: motivo }));
+}
+
+// Todas las rondas (auditoría de firmas).
+export interface PasoAuditoria extends FirmaCadena { ronda: number; created_at: string }
+export async function auditoriaFirmas(id: string): Promise<PasoAuditoria[]> {
+  return exigir(await sb().from('certificado_firmantes').select('ronda, orden, perfil_id, nombre, estado, firma_url, firmado_at, motivo, created_at')
+    .eq('certificado_id', id).order('ronda').order('orden')) as PasoAuditoria[];
 }
 
 export async function borrarCertificado(id: string): Promise<void> {

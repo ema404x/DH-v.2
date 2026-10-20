@@ -1,15 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Clock, Eye, FileText, Loader2, PenTool, Plus, Trash2 } from 'lucide-react';
+import { CheckCircle2, Clock, Eye, FileText, History, Loader2, PenTool, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { aPDF, formDesdeCertificado } from './modelo';
 import { fmt, obtenerCertificado, type CertificadoFila } from '@/lib/certificados';
 import { descargarPDFCertificado } from '@/lib/pdfCertificado';
 import { limpiarError } from '@/lib/errores';
+import { useSesion } from '@/lib/sesion';
 
 const ESTADO: Record<string, { label: string; cls: string }> = {
   borrador: { label: 'Borrador', cls: 'border-borde bg-elevado text-suave' },
+  en_firmas: { label: 'Pend. Firmas', cls: 'border-alerta/30 bg-alerta/15 text-alerta' },
   emitido: { label: 'Emitido', cls: 'border-info/40 bg-info/15 text-info' },
   aprobado: { label: 'Aprobado', cls: 'border-exito/40 bg-exito/15 text-exito' },
 };
@@ -20,14 +22,20 @@ const TIPO: Record<string, { label: string; cls: string }> = {
 };
 
 // Lista de certificados de una solapa (CertificadosLista de la v1).
-export function CertificadosLista({ certificados, cargando, onNuevo, onVer, onBorrar, vacio }: {
+export function CertificadosLista({ certificados, cargando, onNuevo, onVer, onBorrar, vacio, onFirmar, onAuditoria }: {
   certificados: CertificadoFila[];
   cargando: boolean;
   onNuevo: () => void;
   onVer: (c: CertificadoFila) => void;
   onBorrar: (c: CertificadoFila) => void;
   vacio: string;
+  onFirmar?: (c: CertificadoFila) => void;
+  onAuditoria?: (c: CertificadoFila) => void;
 }) {
+  const { perfil } = useSesion();
+  // Cadena de firmas (fase 18): a quién le toca y cuántas van.
+  const teToca = (c: CertificadoFila) => c.estado === 'en_firmas' && !!perfil && c.firmante_actual_id === perfil.id;
+  const conCadena = (c: CertificadoFila) => (c.firmas?.length ?? 0) > 0;
   const [exportando, setExportando] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
 
@@ -90,6 +98,14 @@ export function CertificadosLista({ certificados, cargando, onNuevo, onVer, onBo
                     {c.estado === 'aprobado' && c.aprobado_nombre && (
                       <div className="mt-1 flex items-center gap-1.5 text-xs text-exito"><CheckCircle2 className="h-3 w-3" aria-hidden /><span>Aprobado por {c.aprobado_nombre}</span></div>
                     )}
+                    {c.estado === 'en_firmas' && (
+                      <div className="mt-1 flex items-center gap-1.5 text-xs text-alerta"><PenTool className="h-3 w-3" aria-hidden />
+                        <span>{teToca(c) ? 'Te toca firmar' : `Pendiente firma (${c.firmas.filter((f) => f.estado === 'firmado').length}/${c.firmas.length})`}</span>
+                      </div>
+                    )}
+                    {c.estado === 'borrador' && c.rechazo_motivo && (
+                      <div className="mt-1 text-xs text-peligro">Rechazado: {c.rechazo_motivo}</div>
+                    )}
                     {c.estado === 'emitido' && c.tipo === 'obra' && !c.firma_jefe_url && (
                       <div className="mt-1 flex items-center gap-1.5 text-xs text-alerta"><PenTool className="h-3 w-3" aria-hidden /><span>Pendiente firma del jefe de sitio</span></div>
                     )}
@@ -100,6 +116,12 @@ export function CertificadosLista({ certificados, cargando, onNuevo, onVer, onBo
                       <div className="mt-1 flex items-center gap-1.5 text-xs text-info"><Clock className="h-3 w-3" aria-hidden /><span>Pendiente de aprobación</span></div>
                     )}
                     <div className="mt-2 flex gap-1 sm:hidden">
+                      {teToca(c) && onFirmar && (
+                        <button type="button" className="inline-flex min-h-control items-center gap-1 rounded bg-exito px-2 text-xs font-semibold text-sobre-primario" onClick={() => onFirmar(c)}><PenTool className="h-3.5 w-3.5" aria-hidden /> Firmar</button>
+                      )}
+                      {conCadena(c) && onAuditoria && (
+                        <button type="button" className="inline-flex min-h-control items-center gap-1 rounded px-2 text-xs text-info hover:bg-elevado" onClick={() => onAuditoria(c)}><History className="h-3.5 w-3.5" aria-hidden /> Auditoría</button>
+                      )}
                       <button type="button" className="inline-flex min-h-control items-center gap-1 rounded px-2 text-xs hover:bg-elevado" onClick={() => onVer(c)}><Eye className="h-3.5 w-3.5" aria-hidden /> Ver</button>
                       <button type="button" className="inline-flex min-h-control items-center gap-1 rounded px-2 text-xs text-exito hover:bg-elevado" onClick={() => pdf(c)} disabled={exportando === c.id}>
                         {exportando === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FileText className="h-3.5 w-3.5" aria-hidden />} PDF
@@ -116,6 +138,14 @@ export function CertificadosLista({ certificados, cargando, onNuevo, onVer, onBo
                   <div className="mt-0.5 text-xs text-suave">{new Date(c.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}</div>
                 </div>
 
+                <div className="hidden items-center gap-1 sm:flex">
+                  {teToca(c) && onFirmar && (
+                    <button type="button" className="inline-flex min-h-control items-center gap-1 rounded bg-exito px-3 text-xs font-semibold text-sobre-primario" onClick={() => onFirmar(c)}><PenTool className="h-3.5 w-3.5" aria-hidden /> Firmar</button>
+                  )}
+                  {conCadena(c) && onAuditoria && (
+                    <button type="button" className="flex h-9 w-9 items-center justify-center rounded text-info hover:bg-elevado" onClick={() => onAuditoria(c)} title="Auditoría de firmas" aria-label="Auditoría de firmas"><History className="h-4 w-4" aria-hidden /></button>
+                  )}
+                </div>
                 <div className="hidden items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 sm:flex">
                   {c.estado === 'aprobado' && c.firma_url && (
                     // eslint-disable-next-line @next/next/no-img-element

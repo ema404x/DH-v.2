@@ -6,16 +6,18 @@ import { toast } from 'sonner';
 import { ErrorVista } from '@/components/Estados';
 import { AbonoManualForm } from '@/components/certificados/AbonoManualForm';
 import { AbonosMaestros } from '@/components/certificados/AbonosMaestros';
+import { AuditoriaFirmas } from '@/components/certificados/AuditoriaFirmas';
 import { CertificadoEditor } from '@/components/certificados/CertificadoEditor';
 import { CertificadoPreview } from '@/components/certificados/CertificadoPreview';
 import { CertificadosAutomatizados } from '@/components/certificados/CertificadosAutomatizados';
 import { CertificadosLista } from '@/components/certificados/CertificadosLista';
+import { FirmaIntermediaModal } from '@/components/certificados/FirmaIntermediaModal';
 import { FirmaJefeSitioModal } from '@/components/certificados/FirmaJefeSitioModal';
 import { GeneracionMasiva } from '@/components/certificados/GeneracionMasiva';
 import { UploadADA, type Extraido } from '@/components/certificados/UploadADA';
 import { aGuardar, formDesdeCertificado, formDesdePDF, type FormCert } from '@/components/certificados/modelo';
 import {
-  acumuladoPorItem, aprobarCertificado, borrarCertificado, comunaDe, COMUNAS, contratoPorAda, emitirCertificado, guardarCertificado,
+  acumuladoPorItem, aprobarCertificado, borrarCertificado, comunaDe, COMUNAS, contratoPorAda, emitirCertificado, enviarAFirmas, guardarCadena, guardarCertificado,
   itemsDelContrato, listarCertificados, obtenerCertificado, rechazarCertificado, type CertificadoFila, type LineaCert,
 } from '@/lib/certificados';
 import { borrarArchivo } from '@/lib/obras';
@@ -52,6 +54,9 @@ export default function Certificados() {
   const [emitiendo, setEmitiendo] = useState(false);
   const [pendienteFirma, setPendienteFirma] = useState<FormCert | null>(null);
   const [firmaGerente, setFirmaGerente] = useState(false);
+  // cadena de firmas (fase 18)
+  const [aFirmar, setAFirmar] = useState<CertificadoFila | null>(null);
+  const [auditoria, setAuditoria] = useState<CertificadoFila | null>(null);
 
   const certificados = carga.datos ?? [];
 
@@ -78,8 +83,11 @@ export default function Certificados() {
     }
   }
 
+  // Guarda el borrador y su cadena de firmas (la cadena solo se edita en borrador).
   async function guardar(f: FormCert): Promise<string> {
-    return guardarCertificado(aGuardar(f, esGerencia));
+    const id = await guardarCertificado(aGuardar(f, esGerencia));
+    await guardarCadena(id, f.cadena);
+    return id;
   }
 
   async function borrador(f: FormCert) {
@@ -108,8 +116,14 @@ export default function Certificados() {
     setEmitiendo(true);
     try {
       const id = await guardar(f);
-      const numero = await emitirCertificado(id, firma, true);
-      toast.success(`Certificado N° ${numero} emitido y enviado a aprobación gerencial`);
+      if (f.cadena.length) {
+        // Con cadena: queda esperando firmas; el último firmante lo emite y lo manda a aprobación.
+        await enviarAFirmas(id, firma);
+        toast.success(`Certificado enviado a la cadena de firmas (${f.cadena.length} ${f.cadena.length === 1 ? 'firmante' : 'firmantes'})`);
+      } else {
+        const numero = await emitirCertificado(id, firma, true);
+        toast.success(`Certificado N° ${numero} emitido y enviado a aprobación gerencial`);
+      }
       volverALista();
       carga.recargar();
     } catch (err) {
@@ -230,12 +244,15 @@ export default function Certificados() {
     .filter((c) => comuna === 'Todas' || comunaDe(c) === comuna)
     .filter((c) => mes === 'Todos' || mesDe(c.created_at) === mes);
   const lista = (tipo: string, vacio: string) => (
-    <CertificadosLista certificados={filtrar(tipo)} cargando={carga.cargando && !carga.datos} onNuevo={() => setVista('upload')} onVer={ver} onBorrar={borrar} vacio={vacio} />
+    <CertificadosLista certificados={filtrar(tipo)} cargando={carga.cargando && !carga.datos} onNuevo={() => setVista('upload')} onVer={ver} onBorrar={borrar} vacio={vacio}
+      onFirmar={setAFirmar} onAuditoria={setAuditoria} />
   );
 
   return (
     <div className="space-y-6">
       {firma}
+      <FirmaIntermediaModal cert={aFirmar} onCerrar={() => setAFirmar(null)} onListo={() => { setAFirmar(null); carga.recargar(); }} />
+      <AuditoriaFirmas cert={auditoria} onCerrar={() => setAuditoria(null)} />
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1>Certificados</h1>

@@ -49,6 +49,8 @@ export interface DatosPDF {
   firma_gerente_url: string | null;
   aprobado_por: string | null;
   fecha_aprobacion: string | null;
+  // Firmas intermedias ya aplicadas (cadena de firmas, fase 18), en orden.
+  firmas_cadena?: { nombre: string; firma_url: string; firmado_at: string | null }[];
 }
 
 const LOGO = '/certificados/mejores-logo.jpg';
@@ -92,10 +94,12 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
   const pdfTotalNeto = pdfSubtotal - pdfAnticipo - pdfFondoReparo;
   const montoContratado = r0(form.monto_contratado);
 
-  const [logoBase64, firmaBase64, firmaJefeBase64] = await Promise.all([
+  const cadenaFirmadas = form.firmas_cadena ?? [];
+  const [logoBase64, firmaBase64, firmaJefeBase64, ...cadenaBase64s] = await Promise.all([
     aBase64(LOGO),
     form.firma_gerente_url ? aBase64(form.firma_gerente_url) : Promise.resolve(null),
     form.firma_jefe_url ? aBase64(form.firma_jefe_url) : Promise.resolve(null),
+    ...cadenaFirmadas.map((f) => aBase64(f.firma_url)),
   ]);
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -288,15 +292,28 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
   doc.text(fmt(pdfTotalNeto), W - M - 1, y + 7, { align: 'right' });
   y += 18;
 
-  // Firmas
-  const hasFirmaJefe = !!firmaJefeBase64;
-  const hasFirmaGerente = !!firmaBase64;
-  if (hasFirmaJefe || hasFirmaGerente) {
-    const BLOCK_W = 90, IMG_H = 34, TEXT_H = 22, BLOCK_H = IMG_H + TEXT_H, GAP = 20;
-    const count = (hasFirmaJefe ? 1 : 0) + (hasFirmaGerente ? 1 : 0);
-    const totalW = count * BLOCK_W + (count - 1) * GAP;
-    const startX = (W - totalW) / 2;
-    if (y + BLOCK_H + 18 > SAFE_BOTTOM) {
+  // Firmas, en orden: jefe → cadena → gerente (como la v1). Hasta 3 por fila; con más se pasa a otra fila (y de hoja).
+  const fecha = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null);
+  const firmas: { base64: string; nombre: string; cargo: string; cargo2: string | null; sello: string | null }[] = [];
+  if (firmaJefeBase64) {
+    const f = fecha(form.fecha_firma_jefe);
+    firmas.push({ base64: firmaJefeBase64, nombre: form.firmado_por_jefe || 'Jefe de Sitio', cargo: 'Jefe de Sitio', cargo2: f ? `Firmado: ${f}` : null, sello: 'Conforme' });
+  }
+  cadenaFirmadas.forEach((c, ci) => {
+    const b = cadenaBase64s[ci];
+    if (!b) return;
+    const f = fecha(c.firmado_at);
+    firmas.push({ base64: b, nombre: c.nombre || 'Firmante', cargo: 'Firmante de cadena', cargo2: f ? `Firmado: ${f}` : null, sello: 'Conforme' });
+  });
+  if (firmaBase64) {
+    const f = fecha(form.fecha_aprobacion);
+    firmas.push({ base64: firmaBase64, nombre: form.aprobado_por || 'Gerencia', cargo: 'Gerente de Contratos', cargo2: 'Mejores Hospitales S.A.', sello: f ? `Aprobado: ${f}` : 'Aprobado' });
+  }
+  if (firmas.length) {
+    const BLOCK_W = 82, IMG_H = 30, TEXT_H = 20, BLOCK_H = IMG_H + TEXT_H, GAP_X = 12, GAP_Y = 10;
+    const POR_FILA = Math.max(1, Math.floor((W - M * 2 + GAP_X) / (BLOCK_W + GAP_X)));
+    const filas = Math.ceil(firmas.length / POR_FILA);
+    if (y + Math.min(filas, 1) * BLOCK_H + 24 > SAFE_BOTTOM) {
       doc.addPage();
       drawPageHeader(); y = 26;
     }
@@ -307,39 +324,42 @@ export async function descargarPDFCertificado(form: DatosPDF): Promise<void> {
     doc.text('FIRMAS Y APROBACIÓN', W / 2, y, { align: 'center' });
     y += 6;
 
-    const bloque = async (base64: string, nombre: string, cargo: string, cargo2: string | null, sello: string | null, bx: number) => {
+    const bloque = async (fi: (typeof firmas)[number], bx: number) => {
       const by = y;
-      const dims = await dimensiones(base64);
+      const dims = await dimensiones(fi.base64);
       let drawW = BLOCK_W, drawH = IMG_H;
       if (dims && dims.w && dims.h) {
         const ratio = dims.w / dims.h;
         if (ratio > BLOCK_W / IMG_H) { drawW = BLOCK_W; drawH = BLOCK_W / ratio; } else { drawH = IMG_H; drawW = IMG_H * ratio; }
       }
-      const fmtImg = base64.startsWith('data:image/jpeg') || base64.startsWith('data:image/jpg') ? 'JPEG' : 'PNG';
-      doc.addImage(base64, fmtImg, bx + (BLOCK_W - drawW) / 2, by + (IMG_H - drawH) / 2, drawW, drawH, undefined, 'NONE');
+      const fmtImg = fi.base64.startsWith('data:image/jpeg') || fi.base64.startsWith('data:image/jpg') ? 'JPEG' : 'PNG';
+      doc.addImage(fi.base64, fmtImg, bx + (BLOCK_W - drawW) / 2, by + (IMG_H - drawH) / 2, drawW, drawH, undefined, 'NONE');
       const lineY = by + IMG_H;
       doc.setDrawColor(170, 188, 212); doc.setLineWidth(0.4);
-      doc.line(bx + 6, lineY, bx + BLOCK_W - 6, lineY);
+      doc.line(bx + 5, lineY, bx + BLOCK_W - 5, lineY);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(15, 28, 46);
-      doc.text(nombre, bx + BLOCK_W / 2, lineY + 5.5, { align: 'center', maxWidth: BLOCK_W - 4 });
+      doc.text(fi.nombre, bx + BLOCK_W / 2, lineY + 5.5, { align: 'center', maxWidth: BLOCK_W - 4 });
       doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(80, 95, 120);
-      doc.text(cargo, bx + BLOCK_W / 2, lineY + 10.5, { align: 'center', maxWidth: BLOCK_W - 4 });
-      if (cargo2) doc.text(cargo2, bx + BLOCK_W / 2, lineY + 15, { align: 'center', maxWidth: BLOCK_W - 4 });
-      if (sello) {
+      doc.text(fi.cargo, bx + BLOCK_W / 2, lineY + 10.5, { align: 'center', maxWidth: BLOCK_W - 4 });
+      if (fi.cargo2) doc.text(fi.cargo2, bx + BLOCK_W / 2, lineY + 15, { align: 'center', maxWidth: BLOCK_W - 4 });
+      if (fi.sello) {
         doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(34, 120, 70);
-        doc.text(sello, bx + BLOCK_W / 2, by + BLOCK_H - 2.5, { align: 'center' });
+        doc.text(fi.sello, bx + BLOCK_W / 2, by + BLOCK_H - 2.5, { align: 'center' });
       }
     };
-    const fecha = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null);
-    let i = 0;
-    if (hasFirmaJefe) {
-      const f = fecha(form.fecha_firma_jefe);
-      await bloque(firmaJefeBase64!, form.firmado_por_jefe || 'Jefe de Sitio', 'Jefe de Sitio', f ? `Firmado: ${f}` : null, 'Conforme', startX + i * (BLOCK_W + GAP));
-      i++;
-    }
-    if (hasFirmaGerente) {
-      const f = fecha(form.fecha_aprobacion);
-      await bloque(firmaBase64!, form.aprobado_por || 'Gerencia', 'Gerente de Contratos', 'Mejores Hospitales S.A.', f ? `Aprobado: ${f}` : 'Aprobado', startX + i * (BLOCK_W + GAP));
+    for (let fila = 0; fila < filas; fila++) {
+      const deFila = firmas.slice(fila * POR_FILA, (fila + 1) * POR_FILA);
+      if (y + BLOCK_H > SAFE_BOTTOM) {
+        doc.addPage();
+        drawPageHeader(); y = 26;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(100, 115, 140);
+        doc.text('FIRMAS Y APROBACIÓN (continuación)', W / 2, y, { align: 'center' });
+        y += 8;
+      }
+      const anchoFila = deFila.length * BLOCK_W + (deFila.length - 1) * GAP_X;
+      const startX = (W - anchoFila) / 2;
+      for (let i = 0; i < deFila.length; i++) await bloque(deFila[i], startX + i * (BLOCK_W + GAP_X));
+      y += BLOCK_H + (fila < filas - 1 ? GAP_Y : 0);
     }
   }
 

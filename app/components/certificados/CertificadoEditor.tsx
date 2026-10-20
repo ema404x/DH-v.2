@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, Layers, Loader2, Plus, Save, Send, Trash2, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { CadenaFirmas } from './CadenaFirmas';
 import { HistorialAcumulados } from './HistorialAcumulados';
 import { calcular, nuevoItem, totalItem, type FormCert, type ItemEd } from './modelo';
 import { fmt, parseMesPeriodo, TIPO_LABEL, type TipoCert } from '@/lib/certificados';
@@ -124,7 +125,7 @@ export function CertificadoEditor({ inicial, onBorrador, onEmitir, onCancelar, o
           </button>
           <button type="button" className="inline-flex min-h-control items-center gap-2 rounded bg-exito px-4 text-sm font-semibold text-sobre-primario hover:bg-exito/90 disabled:opacity-50" onClick={() => onEmitir(form)} disabled={ocupado}>
             {emitiendo ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
-            {emitiendo ? 'Emitiendo...' : 'Emitir certificado'}
+            {emitiendo ? (form.cadena.length ? 'Enviando...' : 'Emitiendo...') : form.cadena.length ? 'Enviar a firmas' : 'Emitir certificado'}
           </button>
         </div>
       </div>
@@ -301,6 +302,8 @@ export function CertificadoEditor({ inicial, onBorrador, onEmitir, onCancelar, o
           <p className="text-right text-xs text-suave">El % de anticipo y de fondo de reparo se calcula sobre lo certificado en el período.</p>
         </div>
       </div>
+
+      <CadenaFirmas value={form.cadena} onChange={(v) => set('cadena', v)} deshabilitado={ocupado} />
     </div>
   );
 }
